@@ -74,7 +74,7 @@ function vay(vel   ::Vector{wpFloat},
     # Compute half-step in velocity
     uHalf = u + factor1*(eField + vel × bField)
 
-    # Compute various quantities used to get the full step in velcity
+    # Compute auxiliary quantities used to get the full step in velcity
     # See Vay 2008 for details
     uPrime = uHalf + factor1*eField
     τ = factor1*bField
@@ -94,7 +94,46 @@ function vay(vel   ::Vector{wpFloat},
     velNext = uNext/γNext
     
     return velNext
-end # function vayAdvanceVel
+end # function vay
 
+
+function boris(vel   ::Vector{wpFloat},
+               bField::Vector{wpFloat},
+               eField::Vector{wpFloat},
+               mass  ::wpFloat,
+               charge::wpFloat,
+               dt    ::wpFloat
+               )
+    # Some factors which use is repeated
+    factor1 = 0.5charge*dt/mass
+
+    v = norm(vel)                  # Speed of the particle
+    γ = √(1/(1 - v^2*cSqrdInv)) # The relativistic gamma-factor
+    u = γ * vel                   # The relativistic velocity
+    
+
+    # First half of the electric field acceleration
+    uMinus = u + factor1*eField
+    uMinusNorm = norm(uMinus)
+    
+    # Compute auxiliary quantities
+    γMinus = √(1 + uMinusNorm*cSqrdInv)
+    t = factor1*bField/γMinus
+    tNorm = norm(t)
+    s = 2t/(1 + tNorm^2)
+
+    # Rotation step
+    uPlus = uMinus + (uMinus + (uMinus × t)) × s
+
+    # Second half of electric field acceleration
+    uNext = uPlus + factor1*eField
+    uNextNorm = norm(uNext)
+    γNext = √(1 + uNextNorm^2*cSqrdInv)
+
+    # Get the non-relativistic velocity and position
+    velNext = uNext/γNext
+    
+    return velNext
+end # function boris
 
 end # module schemes
