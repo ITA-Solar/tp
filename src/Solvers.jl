@@ -10,14 +10,14 @@
 #-------------------------------------------------------------------------------
 module Solvers
 
-# Standard library
-using LinearAlgebra: ×, ⋅, norm
+# Standard libraries
+using LinearAlgebra:    ×
 # Internal modules
 using WorkingPrecision: wpInt, wpFloat
-using Meshes
-using Interpolations
-using Particles: specieTable
-using Constants: c, cSqrdInv
+using Meshes:           Mesh          
+using Particles:        specieTable
+using Interpolations:   grid
+using Schemes:          positionHalfStep
 
 """
     fullOrbit(pos, vel, specie, bField, eField, dt, scheme)
@@ -30,27 +30,28 @@ function fullOrbit(pos         ::Vector{wpFloat},
                    specie      ::wpInt,
                    mesh        ::Mesh,
                    dt          ::wpFloat,
-                   interpolator::Function
-                   scheme      ::Function,
+                   interpolator::Function,
+                   scheme      ::Function
                    )
     # Extract particle mass and charge
     mass   = specieTable[specie, 1]
     charge = specieTable[specie, 2]
-    bField, eField = Interpolations.grid(mesh,
-                                         interpolator,
-                                         pos)
+    bField, eField = grid(mesh,
+                          interpolator,
+                          pos)
     acc = charge/mass * (eField + vel × bField)
     newPos, newVel = scheme(pos, vel, acc, dt)
     return newPos, newVel
 end # funcion fullOrbit
 
 
-function relFullOrbitExplLeapFrog(vel         ::Vector{wpFloat},
+function relFullOrbitExplLeapFrog(pos         ::Vector{wpFloat},
+                                  vel         ::Vector{wpFloat},
                                   specie      ::wpInt,
                                   mesh        ::Mesh,
                                   dt          ::wpFloat,
-                                  interpolator::Function
-                                  scheme      ::Function,
+                                  interpolator::Function,
+                                  scheme      ::Function
                                   )
     # Extract particle mass and charge
     mass   = specieTable[specie, 1]
@@ -61,9 +62,9 @@ function relFullOrbitExplLeapFrog(vel         ::Vector{wpFloat},
     #
     posHalf = positionHalfStep(pos, vel, dt)
     # Interpolate fields to this location
-    bField, efield = Interpolations.grid(mesh,
-                                         interpolator,
-                                         posHalf)
+    bField, eField = grid(mesh,
+                          interpolator,
+                          posHalf)
 
     # 
     # Step 2: Evaluate full time step in velocity, which is shceme-dependent.
