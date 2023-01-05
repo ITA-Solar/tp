@@ -28,8 +28,6 @@ export testrelfullOrbitExplLeapFrog
 # Test parameters
 pos = [1.0, 2.0, 2.5] # Arbitrary position
 vel = [1.0, 2.0, 1.5] # Arbitrary velocity
-B = [1.0, 2.0, 3.0]   # Arbitrary magnetic field
-E = [1.0, 2.0, 3.0]   # Arbitrary electric field
 relVel = 6e7 .* vel   # m/s -> γ ≈ 1.19
 specie = 3 # Should yield mass = 1 and charge = 3
 dt = 0.1
@@ -42,6 +40,8 @@ scheme = Schemes.euler
 # No fields
 posAnswer1 = [1.1, 2.2, 2.65]
 # Fields, but no velocity
+B = [1.0, 2.0, 3.0]
+E = [1.0, 2.0, 3.0]
 posAnswer2, velAnswer2 = scheme(pos, [0.0, 0.0, 0.0], 3E, dt)
 # Fields, non-relativistic velocity
 accAnswer3 = 3E .+ 3*[3.0, -1.5, 0.0]
@@ -143,23 +143,28 @@ end # function testfullOrbit
 
 function testrelfullOrbitExplLeapFrog(verbose::Bool)
     @testset verbose=verbose "relFullOrbitExplLeapFrog" begin
-        scheme = Schemes.vay
         #
         # No fields
         #
         B = zeros(3, 3, 3, 3)
         E = zeros(3, 3, 3, 3)
         mesh = Mesh(B, E)
-        nextPos, nextVel = Solvers.relFullOrbitExplLeapFrog(pos,
+        posAnswer = [1.1, 2.2, 2.65]
+
+        nextPosVay1, nextVelVay1 = Solvers.relFullOrbitExplLeapFrog(pos,
                                                             vel,
                                                             specie,
                                                             mesh,
                                                             dt,
                                                             interpolator,
-                                                            scheme)
-        posAnswer = [1.1, 2.2, 2.65]
-        @test nextPos ≈ posAnswer1
-        @test nextVel ≈ vel
+                                                            Schemes.vay)
+        nextPosBoris1, nextVelBoris1 = Solvers.relFullOrbitExplLeapFrog(pos,
+                                                            vel,
+                                                            specie,
+                                                            mesh,
+                                                            dt,
+                                                            interpolator,
+                                                            Schemes.boris)
 
         #
         # Fields, but no velocity
@@ -171,19 +176,39 @@ function testrelfullOrbitExplLeapFrog(verbose::Bool)
         E[2, :, :, :] .= 2.0
         E[3, :, :, :] .= 3.0
         mesh = Mesh(B, E)
-        nextPos, nextVel = Solvers.relFullOrbitExplLeapFrog(pos,
+
+        nextPosVay2, nextVelVay2 = Solvers.relFullOrbitExplLeapFrog(pos,
                                                             [0.0, 0.0, 0.0],
                                                             specie,
                                                             mesh,
                                                             dt,
                                                             interpolator,
-                                                            scheme)
+                                                            Schemes.vay)
+        nextPosBoris2, nextVelBoris2 = Solvers.relFullOrbitExplLeapFrog(pos,
+                                                            [0.0, 0.0, 0.0],
+                                                            specie,
+                                                            mesh,
+                                                            dt,
+                                                            interpolator,
+                                                            Schemes.boris)
+        @testset verbose=verbose "Vay" begin
+            @test nextPosVay1 ≈ posAnswer1
+            @test nextVelVay1 ≈ vel
         # Vay (and the other explicit leap-frog methods that integrates the
         # relativistic Lorentz force) is semi-implicit in the way that the 
         # position is advanced by an velocity equal to the average of the
         # current velocity and the velocity in the next time step.
-        @test nextPos ≈ posAnswer2 + 0.5dt*([0.0 ,0.0 ,0.0] .+ nextVel)
-        @test nextVel ≈ velAnswer2
+            @test nextPosVay2 ≈ posAnswer2+0.5dt*([0.0,0.0,0.0] .+ nextVelVay2)
+            @test nextVelVay2 ≈ velAnswer2
+        end # testset Vay
+
+        # Test if the Boris scheme gave the same result as Vay.
+        @testset verbose=verbose "Boris" begin
+            @test nextPosVay1 ≈ nextPosBoris1
+            @test nextVelVay1 ≈ nextVelBoris1
+            @test nextPosVay2 ≈ nextPosBoris2
+            @test nextVelVay2 ≈ nextVelBoris2
+        end # testset Boris
         
         # The following tests currently fail. I'm not yet sure whether they
         # should pass actually or not.
