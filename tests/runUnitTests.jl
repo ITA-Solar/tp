@@ -10,7 +10,7 @@ using TestInterpolations
 using TestSchemes
 using TestSolvers
 
-verbose = 2
+verbose = 3
     
 @testset verbose = verbose ≥ 1 "Modules" begin
     @testset verbose = verbose ≥ 2 "Interpolations" begin
