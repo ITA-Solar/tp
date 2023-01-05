@@ -23,6 +23,6 @@ verbose = 2
     end
     @testset verbose = verbose ≥ 2 "Solvers" begin
         testfullOrbit(verbose ≥ 3)
-        testvay(verbose ≥ 3)
+        testrelfullOrbitExplLeapFrog(verbose ≥ 3)
     end
 end # testset Modules

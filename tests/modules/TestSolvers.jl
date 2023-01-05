@@ -16,12 +16,14 @@ using Test
 using WorkingPrecision: wpInt, wpFloat
 using Solvers
 using Schemes
+using Interpolations
+using Meshes
 
 """
 """
 
 export testfullOrbit
-export testvay
+export testrelfullOrbitExplLeapFrog
 
 # Test parameters
 pos = [1.0, 2.0, 2.5] # Arbitrary position
@@ -31,6 +33,7 @@ E = [1.0, 2.0, 3.0]   # Arbitrary electric field
 relVel = 6e7 .* vel   # m/s -> γ ≈ 1.19
 specie = 3 # Should yield mass = 1 and charge = 3
 dt = 0.1
+interpolator = Interpolations.trilinear
 scheme = Schemes.euler
 
 #------------------------------#
@@ -49,12 +52,15 @@ function testfullOrbit(verbose::Bool)
         #
         # No fields
         #
+        B = zeros(3, 3, 3, 3)
+        E = zeros(3, 3, 3, 3)
+        mesh = Mesh(B, E)
         nextPos, nextVel = Solvers.fullOrbit(pos,
                                              vel,
                                              specie,
-                                             [0.0,0.0,0.0],
-                                             [0.0,0.0,0.0],
+                                             mesh,
                                              dt,
+                                             interpolator,
                                              scheme)
         @test nextPos == posAnswer1 
         @test nextVel == vel
@@ -62,12 +68,19 @@ function testfullOrbit(verbose::Bool)
         #
         # Fields, but no velocity
         #
+        B[1, :, :, :] .= 1.0
+        B[2, :, :, :] .= 2.0
+        B[3, :, :, :] .= 3.0
+        E[1, :, :, :] .= 1.0
+        E[2, :, :, :] .= 2.0
+        E[3, :, :, :] .= 3.0
+        mesh = Mesh(B, E)
         nextPos, nextVel = Solvers.fullOrbit(pos,
                                              [0.0, 0.0, 0.0],
                                              specie,
-                                             B,
-                                             E,
+                                             mesh,
                                              dt,
+                                             interpolator,
                                              scheme)
         @test nextPos == posAnswer2 
         @test nextVel == velAnswer2
@@ -75,12 +88,16 @@ function testfullOrbit(verbose::Bool)
         #
         # B-field, but no E-field
         #
+        B = zeros(3, 3, 3, 3)
+        B[3, :, :, :] .= 1.0
+        E = zeros(3, 3, 3, 3)
+        mesh = Mesh(B, E)
         nextPos, nextVel = Solvers.fullOrbit([0.0, 0.0, 0.0],
                                              [1.0, 0.0, 1.0],
                                              specie,
-                                             [0.0, 0.0, 1.0],
-                                             [0.0, 0.0, 0.0],
+                                             mesh,
                                              dt,
+                                             interpolator,
                                              scheme)
         @test nextPos ≈ [0.1,   0.0, 0.1]
         @test nextVel ≈ [1.0,  -0.3, 1.0]
@@ -88,12 +105,19 @@ function testfullOrbit(verbose::Bool)
         #
         # Fields, non-relativistic velocity
         #
+        B[1, :, :, :] .= 1.0
+        B[2, :, :, :] .= 2.0
+        B[3, :, :, :] .= 3.0
+        E[1, :, :, :] .= 1.0
+        E[2, :, :, :] .= 2.0
+        E[3, :, :, :] .= 3.0
+        mesh = Mesh(B, E)
         nextPos, nextVel = Solvers.fullOrbit(pos,
                                              vel,
                                              specie,
-                                             B,
-                                             E,
+                                             mesh,
                                              dt,
+                                             interpolator,
                                              scheme)
         @test nextPos == posAnswer3 
         @test nextVel == velAnswer3
@@ -104,11 +128,11 @@ function testfullOrbit(verbose::Bool)
         nextPos, nextVel = Solvers.fullOrbit(pos,
                                              relVel,
                                              specie,
-                                             B,
-                                             E,
+                                             mesh,
                                              dt,
+                                             interpolator,
                                              scheme)
-        accAnswer = 3E .+ 3*[1.8e8, -9.0e7, 0.0]
+        accAnswer = 3E[:, 1, 1, 1] .+ 3*[1.8e8, -9.0e7, 0.0]
         posAnswer, velAnswer = scheme(pos, relVel, accAnswer, dt)
         @test nextPos == posAnswer 
         @test nextVel == velAnswer
@@ -117,18 +141,22 @@ function testfullOrbit(verbose::Bool)
 end # function testfullOrbit
 
 
-function testvay(verbose::Bool)
-    @testset verbose=verbose "vay" begin
+function testrelfullOrbitExplLeapFrog(verbose::Bool)
+    @testset verbose=verbose "relFullOrbitExplLeapFrog" begin
+        scheme = Schemes.vay
         #
         # No fields
         #
-        nextPos, nextVel = Solvers.vay(pos,
-                                       vel,
-                                       specie,
-                                       [0.0,0.0,0.0],
-                                       [0.0,0.0,0.0],
-                                       dt,
-                                       scheme)
+        B = zeros(3, 3, 3, 3)
+        E = zeros(3, 3, 3, 3)
+        mesh = Mesh(B, E)
+        nextPos, nextVel = Solvers.relFullOrbitExplLeapFrog(pos,
+                                                            vel,
+                                                            specie,
+                                                            mesh,
+                                                            dt,
+                                                            interpolator,
+                                                            scheme)
         posAnswer = [1.1, 2.2, 2.65]
         @test nextPos ≈ posAnswer1
         @test nextVel ≈ vel
@@ -136,14 +164,25 @@ function testvay(verbose::Bool)
         #
         # Fields, but no velocity
         #
-        nextPos, nextVel = Solvers.vay(pos,
-                                       [0.0, 0.0, 0.0],
-                                       specie,
-                                       B,
-                                       E,
-                                       dt,
-                                       scheme)
-        @test nextPos ≈ posAnswer2 + nextVel*dt # Vay is semi-implicit
+        B[1, :, :, :] .= 1.0
+        B[2, :, :, :] .= 2.0
+        B[3, :, :, :] .= 3.0
+        E[1, :, :, :] .= 1.0
+        E[2, :, :, :] .= 2.0
+        E[3, :, :, :] .= 3.0
+        mesh = Mesh(B, E)
+        nextPos, nextVel = Solvers.relFullOrbitExplLeapFrog(pos,
+                                                            [0.0, 0.0, 0.0],
+                                                            specie,
+                                                            mesh,
+                                                            dt,
+                                                            interpolator,
+                                                            scheme)
+        # Vay (and the other explicit leap-frog methods that integrates the
+        # relativistic Lorentz force) is semi-implicit in the way that the 
+        # position is advanced by an velocity equal to the average of the
+        # current velocity and the velocity in the next time step.
+        @test nextPos ≈ posAnswer2 + 0.5dt*([0.0 ,0.0 ,0.0] .+ nextVel)
         @test nextVel ≈ velAnswer2
         
         # The following tests currently fail. I'm not yet sure whether they
