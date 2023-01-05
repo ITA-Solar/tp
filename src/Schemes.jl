@@ -9,7 +9,14 @@
 # Module containing the various schemes for solving differential equations
 #-------------------------------------------------------------------------------
 
+
 module Schemes
+
+# Standard libraries
+using LinearAlgebra:    norm, ×, ⋅
+# Internal libraries
+using WorkingPrecision: wpFloat, wpInt
+using Constants:        c, cSqrdInv
 
 
 function euler(pos::Vector{wpFloat},
