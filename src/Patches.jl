@@ -46,16 +46,13 @@ function run!(patch::Patch)
         for j = 1:patch.numParticles # Over particles
             pos = patch.tp.pos[:, j, i]
             vel = patch.tp.vel[:, j, i]
-            bField, eField = Interpolations.grid(patch.mesh,
-                                                 patch.interpolator,
-                                                 pos)
             pos, vel = patch.solver(pos,
                                     vel,
                                     patch.tp.species[j],
-                                    bField,
-                                    eField,
+                                    patch.mesh,
                                     patch.dt,
-                                    patch.scheme
+                                    patch.interpolator
+                                    patch.scheme,
                                     )
             patch.tp.pos[:, j, i+1] = pos
             patch.tp.vel[:, j, i+1] = vel

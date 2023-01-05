@@ -14,6 +14,8 @@ module Solvers
 using LinearAlgebra: ×, ⋅, norm
 # Internal modules
 using WorkingPrecision: wpInt, wpFloat
+using Meshes
+using Interpolations
 using Particles: specieTable
 using Constants: c, cSqrdInv
 
@@ -23,16 +25,20 @@ using Constants: c, cSqrdInv
 Solves the Lorentz equation of motion using an arbitrary numerical scheme
 (defined by the argument `scheme`).
 """
-function fullOrbit(pos   ::Vector{wpFloat},
-                   vel   ::Vector{wpFloat},
-                   specie::wpInt,
-                   bField::Vector{wpFloat},
-                   eField::Vector{wpFloat},
-                   dt    ::wpFloat,
-                   scheme::Function
+function fullOrbit(pos         ::Vector{wpFloat},
+                   vel         ::Vector{wpFloat},
+                   specie      ::wpInt,
+                   mesh        ::Mesh,
+                   dt          ::wpFloat,
+                   interpolator::Function
+                   scheme      ::Function,
                    )
+    # Extract particle mass and charge
     mass   = specieTable[specie, 1]
     charge = specieTable[specie, 2]
+    bField, eField = Interpolations.grid(mesh,
+                                         interpolator,
+                                         pos)
     acc = charge/mass * (eField + vel × bField)
     newPos, newVel = scheme(pos, vel, acc, dt)
     return newPos, newVel
@@ -42,18 +48,33 @@ end # funcion fullOrbit
 """
     vay(pos, vel, specie, bField, eField, dt, scheme)
 
-Implementation of the relativistic Vay pusher. Adapted from J.-L. Vay (2008)
+Implementation of the Vay pusher. For integrating the relativistic Lorentz
+eqution. Adapted from J.-L. Vay (2008). This is only the second step of the
 """
-function vay(pos   ::Vector{wpFloat},
-             vel   ::Vector{wpFloat},
-             specie::wpInt,
-             bField::Vector{wpFloat},
-             eField::Vector{wpFloat},
-             dt    ::wpFloat,
-             scheme::Function
+function vay(pos         ::Vector{wpFloat},
+             vel         ::Vector{wpFloat},
+             specie      ::wpInt,
+             mesh        ::Mesh,
+             dt          ::wpFloat,
+             interpolator::Function
+             scheme      ::Function,
              )
+    # Extract particle mass and charge
     mass   = specieTable[specie, 1]
     charge = specieTable[specie, 2]
+
+    #
+    # Step 1: Evaluate half-step in time for position
+    #
+    posHalf = pos + 0.5dt*vel
+    # Interpolate fields to this location
+    bField, efield = Interpolations.grid(mesh,
+                                         interpolator,
+                                         posHalf)
+
+    # 
+    # Step 2: Evaluate full time step in velocity, which is shceme-dependent.
+    #
     # Some factors which use is repeated
     factor1 = 0.5charge*dt/mass
 
@@ -82,11 +103,13 @@ function vay(pos   ::Vector{wpFloat},
 
     # Get the non-relativistic velocity and position
     velNext = uNext/γNext
-    posIncrement = velNext*dt  # Simple integration of velocity
 
-    return pos + posIncrement, velNext
-    
-end # Function vay
+    #
+    # Step 3: Evaluate second half of time step in position
+    # 
+    posNext = posHalf + 0.5dt*velNext
 
+    return posNext, velNext
+end
 
 end # module Solvers
