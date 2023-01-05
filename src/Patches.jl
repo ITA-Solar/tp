@@ -51,7 +51,7 @@ function run!(patch::Patch)
                                     patch.tp.species[j],
                                     patch.mesh,
                                     patch.dt,
-                                    patch.interpolator
+                                    patch.interpolator,
                                     patch.scheme,
                                     )
             patch.tp.pos[:, j, i+1] = pos
