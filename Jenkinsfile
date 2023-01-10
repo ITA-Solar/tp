@@ -54,8 +54,7 @@ node {
          module load julia/1.8.5
 	 export JULIA_LOAD_PATH=${JULIA_LOAD_PATH}:${PWD}/tests/modules
 	 export JULIA_LOAD_PATH=${JULIA_LOAD_PATH}:${PWD}/src
-	 julia tests/runUnitTests.jl | tee summary.out 
-	 julia tests/experiments/testExBdrift.jl | tee -a summary.out
+	 julia tests/Jenkins.jl
          '''
 
          def testSummary = sh(returnStdout: true, script:'cat summary.out').trim()
