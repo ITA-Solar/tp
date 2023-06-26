@@ -42,10 +42,9 @@ for i = 1:ndt
     # Run experiment
     @time tp_run!(exp)
 
-    tp_savetp(exp,
-              string(params.tp_expdir, "/",
-                     params.tp_expname, "_$(dts[i]).tp")
-              )
+    basename = string(params.tp_expdir, "/", params.tp_expname)
+    tp_savetp(exp, string(basename, "_$i.tp"))
+    tp_saveparams(exp, string(basename, "_params_$i.jl"))
 end
 
     
