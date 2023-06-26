@@ -33,6 +33,7 @@ export tp_init!
 export tp_reinit_particles!
 # Save/load functions
 export tp_save
+export tp_saveparams
 export tp_savetp
 export tp_savemesh
 export tp_savebg
@@ -616,10 +617,20 @@ function tp_save(
     # Write background fields
     #
     tp_savebg(exp, bg_filename)
-    
+
     #
     # Write parameters
     #
+    tp_saveparams(exp, params_filename)
+
+    #
+end # function tp_saveExp
+
+
+function tp_saveparams(
+    exp     ::Experiment,
+    filename::String
+    )
     paramsstring = "using TraceParticles\nparams = Parameters(\n"
     for p in fieldnames(Parameters)
         if isdefined(exp.params, p)
@@ -634,14 +645,13 @@ function tp_save(
         end
     end
     paramsstring = string(paramsstring, ")")
-    f = open(params_filename, "w+")
+    #
+    f = open(filename, "w+")
     write(f, paramsstring)
     close(f)
-    println("tp.jl: Wrote $(params_filename)")
-
     #
-end # function tp_saveExp
-
+    println("tp.jl: Wrote $(filename)")
+end
 
 function tp_savetp(
     exp::Experiment,
