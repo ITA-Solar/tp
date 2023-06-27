@@ -703,14 +703,20 @@ function tp_load(
     ;
     expdir ::String=params.tp_expdir,
     expname::String=params.tp_expname,
+    mesh_filename=nothing,
+    bg_filename  =nothing,
     )
     #
-    println("tp.jl: Loading experiment from file...")
+    println("tp.jl: Loading experiment from file:")
     # Parse filenames
     basename = string(expdir, "/", expname)
     tp_filename = string(basename, ".tp")
-    mesh_filename = string(basename, ".mesh")
-    bg_filename = string(basename, ".bg")
+    if mesh_filename == nothing
+        mesh_filename = string(basename, ".mesh")
+    end
+    if bg_filename == nothing
+        bg_filename = string(basename, ".bg")
+    end
 
     #
     # Open tp-file
