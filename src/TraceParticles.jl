@@ -769,7 +769,7 @@ function tp_loadtp!(
     )
     pos, vel = tp_loadtp(exp.params, filename)
     exp.patch.tp.pos .= pos
-    exp.patch.tp.pos .= vel
+    exp.patch.tp.vel .= vel
 end
     
     
