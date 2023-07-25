@@ -6,8 +6,14 @@
 *~
 # Emacs autosave files
 \#*\#
+# Vim backup-files?
+\.\#*
 #Data files
 data/
 **/data/
+# Trace particle data
+*.tp
+*.bg
+*.mesh
 # Julia-testing file
 test.jl
