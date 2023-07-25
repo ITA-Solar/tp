@@ -521,16 +521,18 @@ end
 function plot(
     tp::ParticleSoA,
     normal::String="z"
+    ;
+    step  ::Integer=1
     )
     _, npart, _ = size(tp.pos)
     fig, ax = plt.subplots(1, npart)
     for i = 1:npart
         if normal == "x"
-            ax[i].plot(tp.pos[2,i,:], tp.pos[3,i,:])
+            ax[i].plot(tp.pos[2,i,begin:step:end], tp.pos[3,i,begin:step:end])
         elseif normal == "y"
-            ax[i].plot(tp.pos[1,i,:], tp.pos[3,i,:])
+            ax[i].plot(tp.pos[1,i,begin:step:end], tp.pos[3,i,begin:step:end])
         elseif normal == "z" 
-            ax[i].plot(tp.pos[1,i,:], tp.pos[2,i,:])
+            ax[i].plot(tp.pos[1,i,begin:step:end], tp.pos[2,i,begin:step:end])
         end
         ax[i].set_title("Trajectory of particle $i")
         setcartesianaxes!(ax[i], normal)
