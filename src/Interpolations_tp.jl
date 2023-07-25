@@ -16,6 +16,7 @@ using Meshes
 export gridinterp
 export locateCell
 export trilinear
+export trilinearGCA
 export bilinear_xz
 
 
@@ -179,7 +180,7 @@ function trilinearGCA(
     )
     coefficients = trilinearcoefficients(mesh.xCoords,
                                          mesh.yCoords,
-                                         mesh.xCoords,
+                                         mesh.zCoords,
                                          (i,j,k),
                                          (x,y,z))
     B = trilinearsum(mesh.bField,
