@@ -434,7 +434,7 @@ function tp_createparticles!(
                 # Expectance value of particle velocity components is zero
                 μ = 0.0
                 # Draw velocity components from normal-distribution
-                vel[:,i] = randn(μ, σ, (numdims))
+                vel[:,i] = randn(μ, σ, (numdims); seed=params.seed)
             end
         else
             error(string("\"mb\" velocity distribution only available with ",
@@ -461,8 +461,9 @@ function tp_createparticles!(
                                     params.velxbounds,
                                     params.velybounds,
                                     params.velzbounds,
-                                    params.wp_part,
-                                    params.seed
+                                    params.wp_part
+                                    ;
+                                    seed=params.seed
                                     )
     elseif params.vel_distr == "point"
         vel = ones(params.wp_part, numdims, params.npart)
