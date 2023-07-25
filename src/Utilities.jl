@@ -213,16 +213,20 @@ function Base.randn(
     μ   ::Real,
     σ   ::Real,
     dims::Tuple{Vararg{Int}}
+    ;
+    seed::Integer=0
     )
-    return μ .+ σ.*randn(dims)
+    return μ .+ σ.*randn(MersenneTwister(seed), dims)
 end # function randn
 #|
 function Base.randn(
     μ   ::Real,
     σ   ::Real,
     dims...
+    ;
+    seed::Integer=0
     )
-    return μ .+ σ.*randn(dims)
+    return μ .+ σ.*randn(MersenneTwister(seed), dims)
 end # function randn
 
 
@@ -520,6 +524,7 @@ function inituniform(
     ybounds::Vector{T} where {T<:Real},
     zbounds::Vector{T} where {T<:Real},
     wfp::DataType,
+    ;
     seed   ::Integer=0
     )
     lowerbounds = [xbounds[1], ybounds[1], zbounds[1]]

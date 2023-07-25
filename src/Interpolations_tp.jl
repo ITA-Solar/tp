@@ -16,7 +16,9 @@ using Meshes
 export gridinterp
 export locateCell
 export trilinear
+export trilinearGCA
 export bilinear_xz
+export bilinear_xzGCA
 
 
 #-----------------------#
@@ -179,7 +181,7 @@ function trilinearGCA(
     )
     coefficients = trilinearcoefficients(mesh.xCoords,
                                          mesh.yCoords,
-                                         mesh.xCoords,
+                                         mesh.zCoords,
                                          (i,j,k),
                                          (x,y,z))
     B = trilinearsum(mesh.bField,
@@ -200,6 +202,34 @@ function trilinearGCA(
 
     return B, E, ∇B, ∇b̂, ∇ExB
 end # function trilinearGCA
+
+function bilinear_xzGCA(
+    mesh   ::Mesh,
+    (i,j,k)::Tuple{Integer, Integer, Integer},
+    (x,y,z)::Tuple{Real, Real, Real}
+    )
+    coefficients = bilinearcoefficients(mesh.xCoords,
+                                        mesh.zCoords,
+                                        (i,j),
+                                        (x,z))
+    B = bilinearsum(dropdims(mesh.bField, dims=3),
+                    (i,j),
+                    coefficients)
+    E = bilinearsum(dropdims(mesh.eField, dims=3),
+                    (i,j),
+                    coefficients)
+    ∇B = bilinearsum(dropdims(mesh.∇B, dims=3),
+                    (i,j),
+                    coefficients)
+    ∇b̂ = bilinearsum(dropdims(mesh.∇b̂, dims=4),
+                    (i,j),
+                    coefficients)
+    ∇ExB = bilinearsum(dropdims(mesh.∇ExB, dims=4),
+                    (i,j),
+                    coefficients)
+    #
+    return B, E, ∇B, ∇b̂, ∇ExB
+end
 
 
 function trilinearcoefficients(

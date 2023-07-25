@@ -157,14 +157,16 @@ mutable struct GCAParticleSoA <: TraceParticle
     an higher order array.
     """
     function GCAParticleSoA( 
-        jR      ::Array{T, 3} where {T<:Real},# The position of the guiding centre
+        R      ::Array{T, 3} where {T<:Real},# The position of the guiding centre
         vparal ::Matrix{T} where {T<:Real},   # The velocity parallel to the
                                               # magnetic field
         μ      ::Vector{T} where {T<:Real},   # Magnetic moment μ of particle
         species::Vector{T} where {T<:Integer},# Particle specie identifier
                                               #   (e.g. electron, proton)
-        alive  ::Vector{Bool},
-        weight ::Vector{T} where {T<:Real}
+        ;
+        alive  ::Vector{Bool}=ones(Bool, size(pos)[2]),
+        weight ::Vector{T} where {T<:Real}=ones(typeof(R[1]),
+                                                size(R)[2])
         )
         return new(R, vparal, μ, species, alive, weight)
     end # constructor 
