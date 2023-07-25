@@ -10,10 +10,11 @@ using Test
 using TestInterpolations_tp
 using TestSchemes
 using TestSolvers
+using TestTraceParticles
 
 verbose = 4
 
-@testset verbose = verbose ≥ 1 "All tests" begin
+@testset verbose = verbose ≥ 1 "Quick tests" begin
     @testset verbose = verbose ≥ 2 "Unit tests" begin
         @testset verbose = verbose ≥ 3 "Interpolations_tp" begin
             testtrilinear(verbose ≥ 4)
@@ -28,6 +29,12 @@ verbose = 4
             testrelfullOrbitExplLeapFrog(verbose ≥ 4)
         end
     end # testset Unit tests
+
+    @testset verbose = verbose ≥ 3 "Modules" begin
+        @testset verbose = true "TraceParticles" begin
+            test_tp_save_and_tp_load(verbose >= 4)
+        end
+    end
     
     @testset verbose = verbose ≥ 3 "Experiments" begin
         @testset verbose = true "ExB-drift" begin
@@ -39,9 +46,6 @@ verbose = 4
         @testset verbose = true "Mirroring" begin
             include("experiments/mirroring.jl")
         end # testset mirroring
-        #@testset verbose = true "Dipole" begin
-        #    include("experiments/dipoleloop.jl")
-        #end # testset dipole
         @testset verbose = true "Speiser (1965)" begin
             include("experiments/speiser1965.jl")
         end # testset Speiser 1965
