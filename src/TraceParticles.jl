@@ -51,15 +51,20 @@ export tp_reset!
 
 
 methodmap = Dict(
-    "full-orbit"     => Solvers.fullOrbit,
-    "full-orbit-isf" => Solvers.fullOrbit_interstaticfield,
-    "full-orbit-rel" => Solvers.relFullOrbitExplLeapFrog,
-    "GCA"            => Solvers.GCA,
-    "RK4"            => Schemes.rk4,
-    "trilinear"      => Interpolations_tp.trilinear,
-    "trilinear-GCA"  => Interpolations_tp.trilinearGCA,
-    "bilinear_xz"    => Interpolations_tp.bilinear_xz,
+    "full-orbit"      => Solvers.fullOrbit,
+    "full-orbit-isf"  => Solvers.fullOrbit_interstaticfield,
+    "full-orbit-rel"  => Solvers.relFullOrbitExplLeapFrog,
+    "GCA"             => Solvers.GCA,
+    "RK4"             => Schemes.rk4,
+    "trilinear"       => Interpolations_tp.trilinear,
+    "trilinear-GCA"   => Interpolations_tp.trilinearGCA,
+    "bilinear_xz"     => Interpolations_tp.bilinear_xz,
+    "bilinear_xz-GCA" => Interpolations_tp.bilinear_xzGCA,
 )
+
+gcasolvers = (
+              "GCA",
+             )
 
 #--------------------#
 # Struct definitions #
@@ -410,8 +415,15 @@ function tp_createparticles!(
             for i = 1:params.npart
                 # Interpolate the temperature at the position of the particle
                 x⃗ = pos[:,i]
+                if params.interp == "bilinear_xz-GCA"
+                    interp = methodmap["bilinear_xz"]
+                elseif params.interp == "trilinear-GCA"
+                    interp = methodmap["trilinear"]
+                else
+                    interp = methodmap[params.interp]
+                end 
                 t, _ = gridinterp(br_temp,
-                               methodmap[params.interp],
+                               interp,
                                x⃗,
                                mesh.xCoords,
                                mesh.yCoords,
@@ -658,8 +670,13 @@ function tp_savetp(
     filename::String,
     )
     f = open(filename, "w+")
-    write(f, exp.patch.tp.pos)
-    write(f, exp.patch.tp.vel)
+    if usingGCA(exp.params)
+        write(f, exp.patch.tp.R)
+        write(f, exp.patch.tp.vparal)
+    else
+        write(f, exp.patch.tp.pos)
+        write(f, exp.patch.tp.vel)
+    end
     close(f)
     println("tp.jl: Wrote $filename")
 end # tp_savetp
@@ -721,7 +738,7 @@ function tp_load(
     #
     # Open tp-file
     #
-    pos, vel = tp_loadtp(params, tp_filename)
+    pos, vel, μ = tp_loadtp(params, tp_filename)
     #
     # Open mesh-file
     #
@@ -734,7 +751,11 @@ function tp_load(
     # Create Mesh, ParticleSoA, Patch and Experiment
     #
     mesh = Mesh(bField, eField, ∇B, ∇b̂, ∇ExB, x, y, z)
-    particles = ParticleSoA(pos, vel, params.specie)
+    if usingGCA(params)
+        particles = GCAParticleSoA(pos, vel, μ, params.specie)
+    else
+        particles = ParticleSoA(pos, vel, params.specie)
+    end
     patch = Patch(mesh,
                   particles,
                   methodmap[params.solver],
@@ -757,15 +778,24 @@ function tp_loadtp(
     )
     numdims = 3
     pos = Array{params.wp_part}(undef, numdims, params.npart, params.nsteps+1)
-    vel = Array{params.wp_part}(undef, numdims, params.npart, params.nsteps+1)
     #
     println("tp.jl: Loading particles...")
     f = open(filename)
-    read!(f, pos)
-    read!(f, vel)
-    close(f)
-    #
-    return pos, vel
+    if usingGCA(params)
+        vel = Array{params.wp_part}(undef, params.npart, params.nsteps+1)
+        μ = Vector{params.wp_part}(undef, params.npart)
+        read!(f, pos)
+        read!(f, vel)
+        read!(f, μ)
+        close(f)
+        return pos, vel, μ
+    else
+        vel = Array{params.wp_part}(undef, numdims, params.npart, params.nsteps+1)
+        read!(f, pos)
+        read!(f, vel)
+        close(f)
+        return pos, vel, nothing
+    end 
 end
 
 
@@ -773,9 +803,15 @@ function tp_loadtp!(
     exp::Experiment,
     filename::String
     )
-    pos, vel = tp_loadtp(exp.params, filename)
-    exp.patch.tp.pos .= pos
-    exp.patch.tp.vel .= vel
+    pos, vel, μ = tp_loadtp(exp.params, filename)
+    if usingGCA(exp.params)
+        exp.patch.tp.R .= pos
+        exp.patch.tp.vparal .= vel
+        exp.patch.tp.μ .= μ
+    else
+        exp.patch.tp.pos .= pos
+        exp.patch.tp.vel .= vel
+    end 
 end
     
     
@@ -919,7 +955,14 @@ function checkrequirements(
     end
 end
 
+
+function usingGCA(params::Parameters)
+    if params.solver in gcasolvers
+        return true
+    else
+        return false
+    end
+end
+
 #-------------------------------------------------------------------------------
 end # module tp
-
-
