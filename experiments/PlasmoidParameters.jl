@@ -81,7 +81,7 @@ function plasmoidParameters(n, dt)
         scheme="RK4",
         interp="trilinear",
         wp_part=Float32,
-        wp_snap=Float32,
+        wp_snap=Float64,
         pos_distr="point",
         vel_distr="point",
         posxbounds=posd[1,:],
