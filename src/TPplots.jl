@@ -17,6 +17,8 @@ import PyPlot
 const plt = PyPlot
 using LinearAlgebra:    norm
 using LaTeXStrings
+using StatsBase
+
 # Internal libraries
 using Meshes
 using Patches:          Patch
@@ -363,14 +365,23 @@ end #function trajectory3D!
 function plotenergydistr(particles::Particles.ParticleSoA, 
                          snap     ::Integer,
                          numbins  ::Integer,
-                         title
+                         title    ::String
+                         ;
+                         log::Bool=false
                          )
     absvel = norm2(particles.vel[:, :, snap])
-    binrange = range(minimum(absvel), maximum(absvel), length=numbins)
-    Plots.histogram(absvel, bins=binrange)
-    Plots.xlabel!("Absolute velocity, m/s")
-    Plots.ylabel!("Number of particles")
-    Plots.title!(title)
+    if log
+        values = log10.(absvel)
+    else
+        values = absvel
+    end
+    binrange = range(minimum(values), maximum(values), length=numbins+1)
+    h = fit(Histogram, values, binrange)
+    PyPlot.figure()
+    PyPlot.bar(binrange[1:end-1], h.weights, diff(binrange), align="edge", log=log)
+    PyPlot.xlabel("Absolute velocity, m/s")
+    PyPlot.ylabel("Number of particles")
+    PyPlot.title(title)
 end # function plotenergydistr
 #
 function plotenergydistr(particles::Particles.GCAParticleSoA, 
