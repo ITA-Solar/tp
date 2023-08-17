@@ -8,16 +8,6 @@
 #-------------------------------------------------------------------------------
 # Module containing the various solvers.
 #-------------------------------------------------------------------------------
-module Solvers
-
-# Standard libraries
-using LinearAlgebra:     ×, ⋅, norm
-# Internal modules
-using Constants:         c
-using Meshes:            Mesh          
-using Particles:         specieTable
-using Interpolations_tp: gridinterp
-using Schemes:           positionHalfStep
 
 """
     fullOrbit(pos, vel, specie, bField, eField, dt, scheme)
@@ -315,6 +305,3 @@ function eomGCA(
     dsdt = [dRdt; dvparaldt]
     return dsdt
 end # function GCA
-
-
-end # module Solvers

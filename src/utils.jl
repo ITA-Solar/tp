@@ -10,19 +10,9 @@
 #-------------------------------------------------------------------------------
 
 
-module Utilities
-
 # Standard libraries
-using LinearAlgebra:    norm
-using Random:           MersenneTwister
 # Internal libraries
-using Constants:        k_B
 
-export randn
-export rand
-export initparticlesuniform
-export initparticlesmaxwellian
-export norm4
 
 
 #----------------#
@@ -624,4 +614,3 @@ function initparticlesimsam(
     return positions, velocities, weights, totweight
 end # function initparticlesmaxwellian
 
-end # module utilities

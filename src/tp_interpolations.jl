@@ -9,16 +9,7 @@
 # Module containing interpolation methods.
 #-------------------------------------------------------------------------------
 
-module Interpolations_tp
 
-using Meshes
-
-export gridinterp
-export locateCell
-export trilinear
-export trilinearGCA
-export bilinear_xz
-export bilinear_xzGCA
 
 
 #-----------------------#
@@ -369,6 +360,3 @@ function bilinearsum(
     A  = c0*A0 + c1*A1 + c2*A2 + c3*A3 
     return A
 end # bilinearsum
-
-end # module Interpolations_tp
-

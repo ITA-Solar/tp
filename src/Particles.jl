@@ -9,31 +9,7 @@
 # Module containing the Particle structs and methods
 #-------------------------------------------------------------------------------
 
-module Particles
 
-using LinearAlgebra:    norm, ⋅
-
-using Constants:        m_e, m_p, e
-using Utilities:        norm3
-using Meshes
-using Interpolations_tp
-
-
-#-------------#   
-# Exports     # 
-#-------------#-----------------------------------------------------------------
-export TraceParticle
-export ParticleSoA # Particles represented as struct of arrays
-export GCAParticleSoA
-export specieTable # Maping specie to mass and charge
-export getpos
-export getvel
-export reset!      # Resets particle positions to zero (except initial position)
-export revive!     # Resets particle alive status to true
-export setinitpos! # Sets the initial position of particles
-export setinitvel! # Sets the initial velocity of particles
-export kineticenergy # Computes the non-rel. kinetic energy at all time steps
-export computeμ
 
 #------------------#
 # Global variables #
@@ -555,4 +531,3 @@ function computeμ(
     return μ
 end # function computeμ
 
-end # module particles

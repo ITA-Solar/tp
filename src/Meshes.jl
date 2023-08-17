@@ -9,23 +9,8 @@
 # Module containing mesh-structs and methods
 #-------------------------------------------------------------------------------
 
-module Meshes
-
-using LinearAlgebra:    ×
-using Random:           MersenneTwister
-
-using Bifrost
-
-using Schemes:          derivate4thOrder, derivateCentral, ∇, derivateUpwind
-using Utilities:        norm4
-using Constants
-using Schemes
 
 
-# Simple mesh
-export Mesh
-export amplifyBfield! # Amplifies the magnetic field of the mesh by a factor
-export amplifyEfield! # Amplifies the elctric field of the mesh by a factor
 
 #-------------#
 # Structs     #
@@ -449,5 +434,3 @@ function amplifyEfield!(mesh  ::Mesh,
     @. mesh.eField *= factor
 end # function amplifyEfield
 
-
-end # module Meshes

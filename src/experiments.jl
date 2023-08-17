@@ -9,57 +9,16 @@
 # The tp (trace particles) package.
 #-------------------------------------------------------------------------------
 
-module TraceParticles
-
-using Mmap
-using LinearAlgebra
-using Printf
-
-using Bifrost
-
-using Patches
-using Meshes
-using Particles
-using Solvers
-using Schemes
-using Interpolations_tp
-using Utilities
-using Constants
-
-export Parameters
-export Experiment
-# Init-functions
-export tp_init!
-export tp_reinit_particles!
-# Save/load functions
-export tp_save
-export tp_saveparams
-export tp_savetp
-export tp_savemesh
-export tp_savebg
-export tp_load
-export tp_loadtp
-export tp_loadtp!
-export tp_loadmesh
-export tp_loadbg
-# Run functions
-export tp_run!
-# Set-functions
-export tp_set_dt!
-export tp_set_nsteps!
-export tp_reset!
-
-
 methodmap = Dict(
-    "full-orbit"      => Solvers.fullOrbit,
-    "full-orbit-isf"  => Solvers.fullOrbit_interstaticfield,
-    "full-orbit-rel"  => Solvers.relFullOrbitExplLeapFrog,
-    "GCA"             => Solvers.GCA,
-    "RK4"             => Schemes.rk4,
-    "trilinear"       => Interpolations_tp.trilinear,
-    "trilinear-GCA"   => Interpolations_tp.trilinearGCA,
-    "bilinear_xz"     => Interpolations_tp.bilinear_xz,
-    "bilinear_xz-GCA" => Interpolations_tp.bilinear_xzGCA,
+    "full-orbit"      => fullOrbit,
+    "full-orbit-isf"  => fullOrbit_interstaticfield,
+    "full-orbit-rel"  => relFullOrbitExplLeapFrog,
+    "GCA"             => GCA,
+    "RK4"             => rk4,
+    "trilinear"       => trilinear,
+    "trilinear-GCA"   => trilinearGCA,
+    "bilinear_xz"     => bilinear_xz,
+    "bilinear_xz-GCA" => bilinear_xzGCA,
 )
 
 gcasolvers = (
@@ -360,7 +319,7 @@ function tp_createparticles!(
         if !isdefined(params, :poszbounds)
             params.poszbounds = [mesh.zCoords[1], mesh.zCoords[end]]
         end
-        pos = Utilities.inituniform(params.npart,
+        pos = inituniform(params.npart,
                                     params.posxbounds,
                                     params.posybounds,
                                     params.poszbounds,
@@ -431,7 +390,7 @@ function tp_createparticles!(
                                mesh.zCoords,
                                )
                 # Standard deviation of velocity
-                σ = √(Constants.k_B*t/specieTable[params.specie[i], 1])
+                σ = √(k_B*t/specieTable[params.specie[i], 1])
                 # Expectance value of particle velocity components is zero
                 μ = 0.0
                 # Draw velocity components from normal-distribution
@@ -451,14 +410,14 @@ function tp_createparticles!(
         vel = ones(numdims, params.npart)
         for i = 1:params.npart
             # Standard deviation of velocity
-            σ = √(Constants.k_B*params.T/specieTable[params.specie[i], 1])
+            σ = √(k_B*params.T/specieTable[params.specie[i], 1])
             # Expectance value of particle velocity components is zero
             μ = 0.0
             # Draw velocity components from normal-distribution
             vel[:,i] = randn(μ, σ, (numdims); seed=params.seed+i)
         end
     elseif params.vel_distr == "uniform"
-        vel = Utilities.inituniform(params.npart,
+        vel = inituniform(params.npart,
                                     params.velxbounds,
                                     params.velybounds,
                                     params.velzbounds,
@@ -512,9 +471,9 @@ function tp_createparticles!(
                                    methodmap[params.interp],
                                    pos[:,i]
                                    )
-            B = Utilities.norm(B⃗)
+            B = norm(B⃗)
             b̂ = B⃗/B
-            v = Utilities.norm(vel[:,i])
+            v = norm(vel[:,i])
             vparal[i] = vel[:,i] ⋅ b̂
             vperp = √(v^2 - vparal[i]^2)
             mass = specieTable[params.specie[i], 1]
@@ -645,7 +604,7 @@ function tp_saveparams(
     exp     ::Experiment,
     filename::String
     )
-    paramsstring = "using TraceParticles\nparams = Parameters(\n"
+    paramsstring = "using tp\nparams = Parameters(\n"
     for p in fieldnames(Parameters)
         if isdefined(exp.params, p)
             if typeof(getfield(exp.params, p)) == String
@@ -792,7 +751,8 @@ function tp_loadtp(
         close(f)
         return pos, vel, μ
     else
-        vel = Array{params.wp_part}(undef, numdims, params.npart, params.nsteps+1)
+        vel = Array{params.wp_part}(undef, numdims, params.npart,
+            params.nsteps+1)
         read!(f, pos)
         read!(f, vel)
         close(f)
@@ -967,4 +927,3 @@ function usingGCA(params::Parameters)
 end
 
 #-------------------------------------------------------------------------------
-end # module tp

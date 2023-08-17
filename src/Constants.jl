@@ -10,7 +10,6 @@
 #-------------------------------------------------------------------------------
 
 
-module Constants
 
 k_B      = 1.380649e-23 # J/K..................... Boltzmann's constant
 e        = 1.602176634e-19 # C....................... Elementary charge
@@ -36,4 +35,3 @@ cgs2SI_e = 1e-6 # g cm s^-2 Fr^-1 * 1e-3 kg/g * 1e-2 m/cm * 1e-1 Fr/C
                 # = kg m /s^2/C................cgs-electric field to SI
 
 
-end # module Constants

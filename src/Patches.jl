@@ -6,23 +6,10 @@
 #                 Patches.jl
 #
 #-------------------------------------------------------------------------------
-# Module containing the Patch struct and methods
+# Contains the Patch structs and methods
 #-------------------------------------------------------------------------------
 
-module Patches
 
-
-using Meshes
-using Particles
-using Solvers
-using Schemes
-using Interpolations_tp
-
-#-------------#   
-# Export      # 
-#-------------#-----------------------------------------------------------------
-export Patch
-export run!
 
 #-------------#   
 # Main struct # 
@@ -120,7 +107,7 @@ function run!(patch::Patch)
             print("Stepping progress: $(i/onepercentofsnap)% \r")
             flush(stdout)
         end
-        Particles.push!(patch.tp,
+        push!(patch.tp,
                         patch.mesh,
                         i,
                         patch.dt,
@@ -168,4 +155,3 @@ function Base.Multimedia.display(p::Patch)
 end # function Base.Multimedia.display
 #-------------------------------------------------------------------------------
 
-end # module Patches

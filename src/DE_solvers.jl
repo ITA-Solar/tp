@@ -10,14 +10,7 @@
 #-------------------------------------------------------------------------------
 
 
-module Schemes
 
-# Standard libraries
-using LinearAlgebra
-# Internal libraries
-using Constants:        c, cSqrdInv
-
-export cross
 
 #---------------------------------------#
 # Integration of differential equations #
@@ -554,5 +547,3 @@ function LinearAlgebra.cross(
     end
     return crossproduct
 end # function cross
-
-end # module schemes
