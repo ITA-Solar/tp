@@ -14,7 +14,17 @@
 #-------------#   
 # Main struct # 
 #-------------#-----------------------------------------------------------------
-mutable struct Patch
+
+#struct PatchDE <: AbstractPatch
+#    params::AbstractProblemParameters
+#    eom   ::Function 
+#    ic    ::AbstractInitialConditions
+#    solver::String
+#    npart ::Integer
+#    tspan ::Tuple{Real, Real}
+#end
+
+mutable struct Patch #<: AbstractPatch
     mesh        ::Mesh
     tp          ::TraceParticle # The trace particles
     solver      ::Function
@@ -96,6 +106,15 @@ mutable struct Patch
             )
     end # constructor
 end # mutable struct Patch
+
+"""
+    PatchDiffEq
+AbstractPatch subtype for using the DifferentialEquations.jl julia-package.
+"""
+#struct PatchDiffEq <: AbstractPatch
+#    
+#end
+
 
 #---------#
 # Methods #

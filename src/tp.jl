@@ -15,7 +15,6 @@ module tp
 #  use external libraries # 
 #-------------------------#-----------------------------------------------------
 using LinearAlgebra
-using Reexport
 using Random:           MersenneTwister
 using Printf
 
@@ -43,7 +42,7 @@ include("constants.jl")
 #include("problem_parameters.jl")
 #include("simulations.jl")
 # --- 
-include("solvers.jl")
+include("DE_solvers.jl")
 include("meshes.jl")
 include("tp_interpolations.jl")
 include("particles.jl")
@@ -76,7 +75,7 @@ export rand
 export initparticlesuniform
 export initparticlesmaxwellian
 export norm4
-export createaxes, discretise!, mirroringfield
+export createaxes, discretise!, mirroringfield, dipolefield
 # solvers.jl
 export cross
 export euler, eulerCromer, rk4
