@@ -42,7 +42,7 @@ include("constants.jl")
 #include("problem_parameters.jl")
 #include("simulations.jl")
 # --- 
-include("DE_solvers.jl")
+include("solvers.jl")
 include("meshes.jl")
 include("tp_interpolations.jl")
 include("particles.jl")
