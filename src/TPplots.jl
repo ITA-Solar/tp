@@ -9,8 +9,6 @@
 # Module containing plotting functions
 #-------------------------------------------------------------------------------
 
-module TPplots
-
 # External libraries
 import Plots
 import PyPlot
@@ -18,29 +16,6 @@ const plt = PyPlot
 using LinearAlgebra:    norm
 using LaTeXStrings
 using StatsBase
-
-# Internal libraries
-using Meshes
-using Patches:          Patch
-using Particles
-using Utilities:        rejectionsampling, norm4, norm2
-using Interpolations_tp
-using Schemes
-using Solvers
-
-export plt
-export plot
-export plotKE
-export plot3D
-export plottraj
-export streamplotslice!
-export pcolormeshslice!
-export pcolormesh_xz!
-export pcolormesh_xy!
-export pcolormesh_yz!
-export trajectoryslice!
-export trajectory3D!
-export quiverslice!
 
 #------#
 # Mesh #
@@ -362,7 +337,7 @@ end #function trajectory3D!
 #-----------#
 # Particles #
 #-------------------------------------------------------------------------------
-function plotenergydistr(particles::Particles.ParticleSoA, 
+function plotenergydistr(particles::ParticleSoA, 
                          snap     ::Integer,
                          numbins  ::Integer,
                          title    ::String
@@ -384,7 +359,7 @@ function plotenergydistr(particles::Particles.ParticleSoA,
     PyPlot.title(title)
 end # function plotenergydistr
 #
-function plotenergydistr(particles::Particles.GCAParticleSoA, 
+function plotenergydistr(particles::GCAParticleSoA, 
                          snap     ::Integer,
                          numbins  ::Integer,
                          title
@@ -1219,7 +1194,3 @@ function plotperiodictrajectoryRoCMI(pyaxes, pos, partidx, cm, colorrange)
                     label="Particle $partidx")
     end
 end 
-
-
-
-end # module TPplots
