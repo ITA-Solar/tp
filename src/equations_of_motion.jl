@@ -172,7 +172,7 @@ function relFullOrbitExplLeapFrog(pos         ::Vector{T} where {T<:Real},
 end # function relFullOrbitExpLeapFrog
 
 
-function GCA(pos         ::Vector{T} where {T<:Real},
+function gca(pos         ::Vector{T} where {T<:Real},
              vel         ::Vector{T} where {T<:Real},
              specie      ::Integer,
              mesh        ::Mesh,
@@ -230,7 +230,7 @@ function GCA(pos         ::Vector{T} where {T<:Real},
     return posNext, velNext
 end # function GCA
 
-function GCA(
+function gca(
     pos         ::Vector{T} where {T<:Real},
     vel         ::Real,
     μ           ::Real,
@@ -247,14 +247,14 @@ function GCA(
     statevector = [pos; vel]
     statevectorNext = scheme(statevector,
                              dt, 
-                             eomGCA,
+                             eom_gca,
                              q, m, μ, mesh, interpolator
                              )
     return statevectorNext[1:3], statevectorNext[4]
     
 end # function GCA
 
-function eomGCA(
+function eom_gca(
     statevector ::Vector{T} where {T<:Real},
     q           ::Real,
     m           ::Real,
@@ -305,3 +305,69 @@ function eomGCA(
     dsdt = [dRdt; dvparaldt]
     return dsdt
 end # function GCA
+
+
+struct LorentzForce
+end
+function (lf::LorentzForce)(du, u, p, t)
+    q, m, bx, by, bz, ex, ey, ez = p
+    x = u[1:3] # The position vector
+    v = u[4:6] # The velocity vector
+    B = [bx(x...), by(x...), bz(x...)]
+    E = [ex(x...), ey(x...), ez(x...)]
+    dvdt = q/m * (E + v × B) 
+    dxdt = v
+    du[:] = [dxdt; dvdt]
+end
+
+
+struct GCA
+end
+function (gca::GCA)(du, u, p, t)
+    R = u[1:3]
+    vparal = u[4] # Particle velocity parallel to the magnetic field
+    # Extract parameters
+    q, m, μ, B_itp, E_itp, gradB_itp, gradb_itp, gradExB_itp = p
+    B_vec = [B_itp[1](R...), B_itp[2](R...), B_itp[3](R...)]
+    E_vec = [E_itp[1](R...), E_itp[2](R...), E_itp[3](R...)]
+    gradB_vec = [ gradB_itp[1](R...), gradB_itp[2](R...), gradB_itp[3](R...) ] 
+    gradb = [ 
+        gradb_itp[1,1](R...) gradb_itp[1,2](R...) gradb_itp[1,3](R...)
+        gradb_itp[2,1](R...) gradb_itp[2,2](R...) gradb_itp[2,3](R...)
+        gradb_itp[3,1](R...) gradb_itp[3,2](R...) gradb_itp[3,3](R...)
+        ]
+    gradExB = [
+        gradExB_itp[1,1](R...) gradExB_itp[1,2](R...) gradExB_itp[1,3](R...)
+        gradExB_itp[2,1](R...) gradExB_itp[2,2](R...) gradExB_itp[2,3](R...)
+        gradExB_itp[3,1](R...) gradExB_itp[3,2](R...) gradExB_itp[3,3](R...) 
+        ]
+    B = norm(B_vec)   # The magnetic field strength
+    b_vec = B_vec/B       # An unit vector pointing in the direction of the
+                       #  magnetic field
+    # Electric field component parallel to the magnetic field
+    Eparal = E_vec⋅b_vec
+    # Calculate drifts
+    ExBdrift = (E_vec × b_vec)/B
+    ∇Bdrift = μ/(q*B)*(b_vec × gradB_vec)
+    # Total time derivatives. Assumes ∂/∂t = 0,
+    dbdt = vparal * (gradb * b_vec) + gradb*ExBdrift
+    dExBdt = vparal * (gradExB * b_vec) + gradExB*ExBdrift
+    
+    # Compute the perpendicular velcoity
+    dRperpdt = ExBdrift + ∇Bdrift + m*b_vec/(q*B) × (vparal*dbdt + dExBdt)
+    #dRperpdt = b̂/B × (-E⃗ + μ/q*∇B + m/q*(vparal*db̂dt + dExBdt))  # old
+
+    # Compute the acceleration 
+    dvparaldt = (q*Eparal - μ*b_vec⋅gradB_vec)/m # along the magnetic field lines
+    # With correction proposed by Birn et al., 2004:
+    #dvparaldt = (q*Eparal - μ*b̂⋅∇B)/m + ExBdrift⋅db̂dt + ∇Bdrift⋅db̂dt
+    #dRperpdt = b̂/B × (-c*E⃗ + μ*c/q * ∇B) #old
+
+    # Compute the velocity
+    dRdt = vparal*b_vec+ dRperpdt
+    
+    # How to store the perpendicular velocity? Would need to know b̂ at
+    #   each R calculate vperp at each R. Could be interesting to store this
+    #   as an auxiliary variable somehow, to se how the drift evolves.
+    du[:] = [dRdt; dvparaldt]
+end

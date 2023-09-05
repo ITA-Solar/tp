@@ -25,12 +25,26 @@ specieTable = [m_e   -e     # Electron
 #-------------#   
 # Structs     # 
 #-------------#-----------------------------------------------------------------
-"""
-    TraceParticle
-The supertype of all trace particles
-"""
-abstract type TraceParticle end
 
+struct ODEParticle{Equations} <: AbstractParticle
+    eom  ::Equations
+    ic   ::AbstractInitialConditions
+    p    ::AbstractProblemParameters
+    npart::Int64
+end
+
+
+function get_problem(part::ODEParticle, tspan)
+    return ODEProblem(part.eom, part.ic(), tspan, part.p())
+end
+
+function get_prob_func(part::ODEParticle)
+    return (prob, i, repeat) -> remake(prob, u0=part.ic(i), p=part.p(i))
+end
+
+#------------------#
+# Legacy-particles #
+#------------------#------------------------------------------------------------
     
 mutable struct ParticleSoA <: TraceParticle
     pos    ::Array{T, 3} where {T<:Real}

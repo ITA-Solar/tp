@@ -17,6 +17,7 @@ module tp
 using LinearAlgebra
 using Random:           MersenneTwister
 using Printf
+using DifferentialEquations
 using Interpolations
 
 using BifrostTools
@@ -25,41 +26,47 @@ using BifrostTools
 Abstract types: Ideas for next version
 """
 #abstract type AbstractExperiment end
-#abstract type AbstractPatch end
-#abstract type AbstractParticle end
-#abstract type AbstractProblem end
-#abstract type AbstractProblemParameters end
+abstract type AbstractPatch end
 abstract type AbstractMesh end
+abstract type AbstractParticle end
+abstract type TraceParticle <: AbstractParticle end
+abstract type AbstractProblemParameters end
+abstract type AbstractInitialConditions end
 #abstract type AbstractSimulation end
 #abstract type AbstractSolver end
-#abstract type AbstractInitialConditions end
 
 include("utils.jl")
 include("constants.jl")
 # ---
 # Ideas for next version
-#include("initial_conditions.jl")
 #include("problems.jl")
-#include("problem_parameters.jl")
 #include("simulations.jl")
 # --- 
 include("solvers.jl")
 include("meshes.jl")
-include("tp_interpolations.jl")
+include("tp_interpolations.jl") 
 include("particles.jl")
 include("equations_of_motion.jl")
 include("patches.jl")
+include("initial_conditions.jl")
 include("interpolations.jl")
+include("problem_parameters.jl")
 include("experiments.jl")
 	
 # Exports
-export Patch, run!
+export TParticle, FOStaticIC, LorentzForce, electron, ODEParticle, Lorentzforce,
+        FOParams, lorentz_force!, GCAParams, GCAStaticIC
+export Patch, run!, update, DEPatch
+export compute_gradients, derivateUpwind, EMfield_itps, calc_GCA_IC_and_mu
+
+
 # meshes.jl
 export Mesh
 export PureMesh
 export amplifyBfield! # Amplifies the magnetic field of the mesh by a factor
 export amplifyEfield! # Amplifies the elctric field of the mesh by a factor
 # particles.jl
+export FOParticle, get_eom, get_problem, get_ui, get_eom_params
 export TraceParticle
 export ParticleSoA # Particles represented as struct of arrays
 export GCAParticleSoA

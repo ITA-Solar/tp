@@ -12,19 +12,34 @@
 
 
 #-------------#   
-# Main struct # 
+# structs     # 
 #-------------#-----------------------------------------------------------------
 
-#struct PatchDE <: AbstractPatch
-#    params::AbstractProblemParameters
-#    eom   ::Function 
-#    ic    ::AbstractInitialConditions
-#    solver::String
-#    npart ::Integer
-#    tspan ::Tuple{Real, Real}
-#end
+struct DEPatch <: AbstractPatch
+    tspan::Tuple{Real, Real}
+    tp   ::AbstractParticle
+    mesh ::AbstractMesh
+end 
 
-mutable struct Patch #<: AbstractPatch
+function run!(patch::DEPatch)
+    update(patch)
+end 
+
+function update(patch::DEPatch)
+    prob = get_problem(patch.tp, patch.tspan)
+    # How to get prob_func for ensamble simulations?
+    ensamble_prob = EnsembleProblem(prob, prob_func=get_prob_func(patch.tp))
+    sim = solve(ensamble_prob, 
+                EnsembleSerial(), 
+                trajectories=patch.tp.npart # or just patch.solver?
+                )
+end
+
+#------------------#
+# Legacy-patch #
+#------------------#------------------------------------------------------------
+
+mutable struct Patch <: AbstractPatch
     mesh        ::Mesh
     tp          ::TraceParticle # The trace particles
     solver      ::Function
