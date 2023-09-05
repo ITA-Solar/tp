@@ -15,7 +15,36 @@
 #-------------#
 # Structs     #
 #-------------#-----------------------------------------------------------------
-struct Mesh
+
+struct PureMesh <: AbstractMesh
+    x ::Vector{T} where {T<:Real}
+    y ::Vector{T} where {T<:Real}
+    z ::Vector{T} where {T<:Real}
+    nx::Int64
+    ny::Int64
+    nz::Int64
+    #
+    domain::Matrix{T} where {T<:Real}
+
+    function PureMesh(
+        x ::Vector{T} where {T<:Real},
+        y ::Vector{T} where {T<:Real},
+        z ::Vector{T} where {T<:Real}
+        )
+        nx = length(x) 
+        ny = length(y) 
+        nz = length(z) 
+        domain = [x[1] x[end]
+                  y[1] y[end]
+                  z[1] z[end]]
+        new(x, y, z, nx, ny, nz, domain)
+    end
+end  
+
+#------------------#
+# Legacy-mesh      #
+#------------------#------------------------------------------------------------
+struct Mesh <: AbstractMesh
     bField ::Array{T, 4} where {T<:Real} # The magnetic field
     eField ::Array{T, 4} where {T<:Real} # The eletric field
     ∇B     ::Array{T, 4} where {T<:Real} # The gradient of the magnetic field

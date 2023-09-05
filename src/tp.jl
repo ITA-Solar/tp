@@ -25,10 +25,10 @@ Abstract types: Ideas for next version
 """
 #abstract type AbstractExperiment end
 #abstract type AbstractPatch end
-#abstract type AbstractMesh end
 #abstract type AbstractParticle end
 #abstract type AbstractProblem end
 #abstract type AbstractProblemParameters end
+abstract type AbstractMesh end
 #abstract type AbstractSimulation end
 #abstract type AbstractSolver end
 #abstract type AbstractInitialConditions end
@@ -54,6 +54,7 @@ include("experiments.jl")
 export Patch, run!
 # meshes.jl
 export Mesh
+export PureMesh
 export amplifyBfield! # Amplifies the magnetic field of the mesh by a factor
 export amplifyEfield! # Amplifies the elctric field of the mesh by a factor
 # particles.jl
