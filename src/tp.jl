@@ -17,6 +17,7 @@ module tp
 using LinearAlgebra
 using Random:           MersenneTwister
 using Printf
+using Interpolations
 
 using BifrostTools
 
@@ -48,6 +49,7 @@ include("tp_interpolations.jl")
 include("particles.jl")
 include("equations_of_motion.jl")
 include("patches.jl")
+include("interpolations.jl")
 include("experiments.jl")
 	
 # Exports
