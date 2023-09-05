@@ -57,7 +57,7 @@ struct Mesh
                   yCoords[1] yCoords[length(yCoords)]
                   zCoords[1] zCoords[length(zCoords)]]
         numdims = 3
-        ∇B, ∇b̂, ∇ExB = compute∇s(bField, eField,
+        ∇B, ∇b̂, ∇ExB = compute_gradients(bField, eField,
                                  xCoords,
                                  yCoords,
                                  zCoords,
@@ -80,7 +80,7 @@ struct Mesh
 #                       xCoords,
 #                       yCoords,
 #                       zCoords)
-        ∇B, ∇b̂, ∇ExB = compute∇s(bField, eField,
+        ∇B, ∇b̂, ∇ExB = compute_gradients(bField, eField,
                                  xCoords,
                                  yCoords,
                                  zCoords)
@@ -98,7 +98,7 @@ struct Mesh
         dx = xCoords[2] - xCoords[1]
         dy = yCoords[2] - yCoords[1]
         #∇B = ∇(bField, dx, dy, derivate4thOrder) # Won't work. need norm3
-        ∇B, ∇b̂, ∇ExB = compute∇s(bField, eField, # Won't work. Need norm3 etc.
+        ∇B, ∇b̂, ∇ExB = compute_gradients(bField, eField, # Won't work. Need norm3 etc.
                                  xCoords,
                                  yCoords,
                                  zCoords)
@@ -325,7 +325,7 @@ struct Mesh
         #-----------------------------------------------------------------------
         # Define/compute other parameters/variables.
 
-        ∇B, ∇b̂, ∇ExB = compute∇s(bField, eField,
+        ∇B, ∇b̂, ∇ExB = compute_gradients(bField, eField,
                                  x,
                                  y,
                                  z,
@@ -357,7 +357,7 @@ function compute∇B(bField ::Array{T, 4} where {T<:Real},
 end # function compute∇B
 
 
-function compute∇s(bField ::Array{T, 4} where {T<:Real},
+function compute_gradients(bField ::Array{T, 4} where {T<:Real},
                    eField ::Array{T, 4} where {T<:Real},
                    xCoords::Vector{T} where {T<:Real},
                    yCoords::Vector{T} where {T<:Real},
@@ -386,15 +386,16 @@ function compute∇s(bField ::Array{T, 4} where {T<:Real},
     ∇b̂ = ∇(b̂,  dx, dy, dz, derivate4thOrder)
     ∇ExBdrift= ∇(ExBdrift, dx, dy, dz, derivate4thOrder)
     return ∇B, ∇b̂, ∇ExBdrift
-end # function compute∇s
+end # function compute_gradients
 #|
-function compute∇s(bField ::Array{T, 4} where {T<:Real},
-                   eField ::Array{T, 4} where {T<:Real},
-                   xCoords::Vector{T} where {T<:Real},
-                   yCoords::Vector{T} where {T<:Real},
-                   zCoords::Vector{T} where {T<:Real},
-                   scheme ::Function
-                   )
+function compute_gradients(
+    bField ::Array{T, 4} where {T<:Real},
+    eField ::Array{T, 4} where {T<:Real},
+    xCoords::Vector{T} where {T<:Real},
+    yCoords::Vector{T} where {T<:Real},
+    zCoords::Vector{T} where {T<:Real},
+    scheme ::Function
+    )
     wfp = typeof(bField[1])
     _, nx, ny, nz = size(bField)
     BB = norm4(bField)
