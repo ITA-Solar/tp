@@ -55,10 +55,16 @@ function EMfield_itps(
     itp_type = Gridded(Linear())
     itp_bc = Flat()
     axes = (mesh.x, mesh.y, mesh.z)
+    println("tp.jl: Getting GCA problem parameters...")
+    println("           Creating interpolation objects: B")
     B_itp = tensor_interpolate(axes, B, itp_type, itp_bc)
+    println("                                           E")
     E_itp = tensor_interpolate(axes, E, itp_type, itp_bc)
+    println("                                           grad B")
     gradB_itp = tensor_interpolate(axes, gradB, itp_type, itp_bc)
+    println("                                           grad b")
     gradb_itp = tensor_interpolate(axes, gradb, itp_type, itp_bc)
+    println("                                           grad ExB")
     gradExB_itp = tensor_interpolate(axes, gradExB, itp_type, itp_bc)
     return B_itp, E_itp, gradB_itp, gradb_itp, gradExB_itp
 end
