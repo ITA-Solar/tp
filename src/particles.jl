@@ -39,7 +39,10 @@ function get_problem(part::ODEParticle, tspan)
 end
 
 function get_prob_func(part::ODEParticle)
-    return (prob, i, repeat) -> remake(prob, u0=part.ic(i), p=part.p(i))
+    return (prob, i, repeat) -> (
+                println("tp.jl: Solving particle $i");
+                remake(prob, u0=part.ic(i), p=part.p(i))
+                )
 end
 
 #------------------#
