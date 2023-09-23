@@ -21,23 +21,39 @@ methodmap = Dict(
     "bilinear_xz-GCA" => bilinear_xzGCA,
 )
 
-gcasolvers = (
+gca_solvers = (
               "GCA",
+              GCA,
+              GCA()
              )
+fo_solvers = (
+    "full-orbit",
+    "full-orbit-isf",
+    "full-orbit-rel",
+    LorentzForce,
+    LorentzForce()
+)
 
 #--------------------#
 # Struct definitions #
 #--------------------#----------------------------------------------------------
+
 mutable struct Parameters
     #
+    patch_type::String
     npart ::Integer
-    nsteps::Integer
-    dt    ::Real
     # Working precision on snap (mesh and fields) and part (trace particles)
     wp_snap::DataType
     wp_part::DataType
+    # Required for standard patch
+    nsteps::Integer
+    dt    ::Real
+    # Required for DE patch
+    tspan ::Tuple{<:Real, <:Real}
+    charge::Any
+    mass  ::Any
     # Solver, numerical scheme and interpolation scheme
-    solver::String
+    solver::Any
     scheme::String
     interp::String
     # Location for saving simulation-data
@@ -48,29 +64,29 @@ mutable struct Parameters
     br_expdir ::String
     br_isnap  ::Integer
     # Manual mesh and EM-fields
-    x ::Vector{T} where {T<:Real}
-    y ::Vector{T} where {T<:Real}
-    z ::Vector{T} where {T<:Real}
-    bx::Array{T, 3} where {T<:Real}
-    by::Array{T, 3} where {T<:Real}
-    bz::Array{T, 3} where {T<:Real}
-    ex::Array{T, 3} where {T<:Real}
-    ey::Array{T, 3} where {T<:Real}
-    ez::Array{T, 3} where {T<:Real}
+    x ::Vector{<:Real}
+    y ::Vector{<:Real}
+    z ::Vector{<:Real}
+    bx::Array{<:Real, 3}
+    by::Array{<:Real, 3}
+    bz::Array{<:Real, 3}
+    ex::Array{<:Real, 3}
+    ey::Array{<:Real, 3}
+    ez::Array{<:Real, 3}
     # Number of grid points in the x, y, and z-direction
     nx::Integer
     ny::Integer
     nz::Integer
     # Particle-initialisation
-    specie   ::Vector{T} where {T<:Integer}
+    specie   ::Vector{<:Integer}
     pos_distr::String # Particle position distribution "uniform": uniform
     vel_distr::String # Particle velocity distribution    ↑ or "mb": MB
-    posxbounds::Vector{T} where {T<:Real} 
-    posybounds::Vector{T} where {T<:Real} 
-    poszbounds::Vector{T} where {T<:Real} 
-    velxbounds::Vector{T} where {T<:Real} 
-    velybounds::Vector{T} where {T<:Real} 
-    velzbounds::Vector{T} where {T<:Real} 
+    posxbounds::Vector{<:Real}
+    posybounds::Vector{<:Real}
+    poszbounds::Vector{<:Real}
+    velxbounds::Vector{<:Real}
+    velybounds::Vector{<:Real}
+    velzbounds::Vector{<:Real}
     T         ::Real
     seed      ::Integer
     # Boundary conditions
@@ -80,6 +96,7 @@ mutable struct Parameters
     # "Private" parameters
     bg_input::String # "br": Bifrost snapshot
                      # "manual": Mesh and fields are defined manually in Julia.
+    SI_units::Bool
 
     # Constructors
     #--------------------------------------------------------------------------
@@ -89,15 +106,22 @@ mutable struct Parameters
         # Required parameters
         #-----------------------------------------|
         npart ::Integer,
-        nsteps::Integer,
-        dt    ::Real,
         # Working precision
         wp_snap::DataType,
         wp_part::DataType,
         #
         # Optionals
         #-----------------------------------------|
-        solver::String="full-orbit",
+        # (required for standard patch)
+        nsteps=nothing,
+        dt    =nothing,
+        # (required for DE patch)
+        tspan = nothing,
+        charge= nothing,
+        mass  = nothing,
+        #
+        patch_type::String="STD",
+        solver="full-orbit",
         scheme::String="RK4",
         interp::String="trilinear",
         tp_expname=nothing,
@@ -136,6 +160,7 @@ mutable struct Parameters
         seed      =0,
         # Periodic boundary conditions
         pbc::Tuple{Bool, Bool, Bool}=(false, false, false),
+        SI_units::Bool=true,
         # "Private" parameters
         #-----------------------------------------|
         bg_input::String="br"
@@ -174,39 +199,35 @@ mutable struct Parameters
 
         #-----------------------------------------------------------------------
         # Check if optional paramters without default are available
-        if tp_expname != nothing
+        if tp_expname !== nothing
             params.tp_expname = tp_expname
         end
-        if tp_expdir != nothing
+        if tp_expdir !== nothing
             params.tp_expdir = tp_expdir
         end
-        if posxbounds != nothing
+        if posxbounds !== nothing
             params.posxbounds = posxbounds
         end
-        if posybounds != nothing
+        if posybounds !== nothing
             params.posybounds = posybounds
         end
-        if poszbounds != nothing
+        if poszbounds !== nothing
             params.poszbounds = poszbounds
         end
-        if nx != nothing
+        if nx !== nothing
             params.nx = nx
         end
-        if ny != nothing
+        if ny !== nothing
             params.ny = ny
         end
-        if nz != nothing
+        if nz !== nothing
             params.nz = nz
         end
-        if T != nothing
+        if T !== nothing
             params.T = T
         end
 
         #-----------------------------------------------------------------------
-        # Set required parameters
-        params.npart = npart
-        params.nsteps = nsteps
-        params.dt = dt
         params.wp_snap = wp_snap
         params.wp_part = wp_part
         # Set optional parameters
@@ -221,10 +242,34 @@ mutable struct Parameters
         params.velxbounds = velxbounds
         params.velybounds = velybounds
         params.velzbounds = velzbounds
+        params.SI_units = SI_units
         # Set default value to optional parameters that are not passed and not
         # already defined above.
-
-        # Construct methodmap
+        
+        # Set required parameters
+        params.npart = npart
+        if patch_type == "STD"
+            params.patch_type = patch_type
+            try
+                params.dt = dt
+                params.nsteps = nsteps
+            catch
+                error("Missing parameters: dt and/or nsteps")
+            end
+        #-----------------------------------------------------------------------
+        # Additional parameters for DEPatch
+        elseif patch_type == "DE"
+            params.patch_type = patch_type
+            try
+                params.tspan = tspan
+                params.charge = charge
+                params.mass = mass
+            catch
+                error("Missing parameter(s). Check: tspan, charge, mass")
+            end
+        else
+            error("Unrecognised Patch type")
+        end
 
         # Return Parameters instance
         return params
@@ -234,13 +279,76 @@ end # struct Parameters
 
 mutable struct Experiment
     params::Parameters
-    patch ::Patch
+    patch ::AbstractPatch
 end
 
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #------------------------------#
 # Initialisation of Experiment #
 #------------------------------#------------------------------------------------
+function DE_init!(
+    params::Parameters
+    )
+    # Check whether the required parameters are present. Since the struct is
+    # mutable, it may have changed since constrcution.
+    checkrequirements(params)
+
+
+    println("tp.jl: Initialising experiment...")
+
+    #---------------------------------------------------------------------------
+    # Get mesh, fields, initial conditions and problem parameters from the 
+    # experiment parameters
+    mesh = create_puremesh(params)
+    bfield, efield = get_fields(params) 
+    println("tp.jl: Drawing initial posistions and velocities...")
+    pos, vel = tp_get_initial_pos_and_vel!(params, mesh)
+    if usingGCA(params)
+        println("tp.jl: Getting GCA initial conditions...")
+        ICs, mu = get_GCA_IC(params, pos, vel, bfield, efield, mesh)
+        println("tp.jl: Computing field-gradients...")
+        gradB, gradb, gradExB = compute_gradients(
+                                    bfield, 
+                                    efield,
+                                    mesh.x, mesh.y, mesh.z,
+                                    derivateUpwind
+                                    )
+        println("tp.jl: Getting GCA problem parameters...")
+        prob_params = GCAParams(
+            params.charge,
+            params.mass,
+            mu,
+            mesh,
+            bfield,
+            efield,
+            gradB,
+            gradb,
+            gradExB
+        )
+    else
+        println("tp.jl: Getting FO initial conditions...")
+        ICs = get_FO_IC(pos, vel) 
+        println("tp.jl: Getting FO problem parameters...")
+        prob_params = FOParams(params.charge, params.mass, mesh, bfield, efield)
+    end
+
+    #---------------------------------------------------------------------------
+    # Construct instances of the ODEparticle (ensamble of particles), the 
+    # the instances of the patch and the experiment.
+    particle = ODEParticle(
+                        params.solver, 
+                        ICs, 
+                        prob_params, 
+                        params.npart
+                        )
+    patch = DEPatch(params.tspan, particle, mesh)
+    exp = Experiment(params, patch)
+    println("tp.jl: Initialisation of DE-experiment completed.")
+    return exp
+end
+
+
 function tp_init!(
     params::Parameters
     )
@@ -253,9 +361,9 @@ function tp_init!(
 
     #---------------------------------------------------------------------------
     # Construct Experiment
-    #---------------------------------------------------------------------------
     mesh = tp_createmesh!(params)
-    particles = tp_createparticles!(params, mesh)
+    pos, vel = tp_get_initial_pos_and_vel!(params, mesh)
+    particles = tp_createparticles!(params, pos, vel)
     patch = tp_createpatch(params, mesh, particles)
 
     exp = Experiment(params,
@@ -265,12 +373,249 @@ function tp_init!(
 end # function tp_init
 
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+function create_puremesh(params::Parameters)
+    if params.bg_input == "br"
+        return get_mesh_from_br(params)
+    elseif params.bg_input == "manual"
+        return PureMesh(params.x, params.y, params.z)
+    else
+        error("Invalid parameter: bg_input")
+    end
+end # function create_puremesh
+
+
+function get_fields(params::Parameters)
+    if params.bg_input == "br"
+        return get_fields_from_br(params)
+    elseif params.bg_input == "manual"
+        B = [params.bx;;;; params.by;;;; params.bz]
+        E = [params.ex;;;; params.ey;;;; params.ez]
+        B = permutedims(B, (4, 1, 2, 3))
+        E = permutedims(E, (4, 1, 2, 3))
+        return B, E
+    else
+        error("Invalid parameter: bg_input")
+    end
+end
+
+
+function get_GCA_IC(
+    params::Parameters,
+    pos::Matrix{<:Real},
+    vel::Matrix{<:Real},
+    Bfield::Array{<:Real, 4},
+    Efield::Array{<:Real, 4},
+    pmesh ::PureMesh
+    )
+    B_itp, E_itp = EMfield_itps(pmesh, Bfield, Efield)
+    B_at_pos = Array{Float64}(undef, 3, params.npart)
+    E_at_pos = Array{Float64}(undef, 3, params.npart)
+    @time for i = 1:params.npart
+        x,y,z = pos[:,i]
+        B_at_pos[:,i] = [ B_itp[1](x,y,z),
+                      B_itp[2](x,y,z),
+                      B_itp[3](x,y,z) ]
+        E_at_pos[:,i] = [ E_itp[1](x,y,z),
+                      E_itp[2](x,y,z),
+                      E_itp[3](x,y,z) ]
+    end     
+    R, vparal, mu = calc_GCA_IC_and_mu(
+        pos, 
+        vel, 
+        params.charge, 
+        params.mass,
+        B_at_pos,
+        E_at_pos,
+    )
+    return GCA_IC(
+        VectorIC(R[1,:]), 
+        VectorIC(R[2,:]), 
+        VectorIC(R[3,:]), 
+        VectorIC(vparal)
+        ), 
+        mu
+end
+
+function get_FO_IC(
+    pos::Matrix{<:Real},
+    vel::Matrix{<:Real},
+)
+    return FO_IC(
+        VectorIC(pos[1,:]),
+        VectorIC(pos[2,:]),
+        VectorIC(pos[3,:]),
+        VectorIC(vel[1,:]),
+        VectorIC(vel[2,:]),
+        VectorIC(vel[3,:]),
+        )
+end
+
+function get_mesh_from_br(
+    params::Parameters
+    )    
+    println("tp.jl: Reading Bifrost mesh...")
+    basename = string(
+        params.br_expdir, "/", params.br_expname
+        )
+    idl_filename = string(basename, "_", params.br_isnap, ".idl")
+    mesh_filename = string(basename, ".mesh")
+    br_mesh = BifrostMesh(mesh_filename)
+    br_params = br_read_params(idl_filename)
+    # Scale axes
+    code2cgs_l = params.wp_snap(br_params["u_l"])
+    x = code2cgs_l * tp.cgs2SI_l * br_mesh.x
+    y = code2cgs_l * tp.cgs2SI_l * br_mesh.y
+    z = code2cgs_l * tp.cgs2SI_l * br_mesh.z
+    if length(y) == 1
+        y = [y[1],y[1]]
+    end
+    return PureMesh(x, y, z)
+end
+
+function get_fields_from_br(
+    params::Parameters
+    )
+    wfp = params.wp_snap
+    ndims = 3
+
+    file_basename = string(
+        params.br_expdir, "/", params.br_expname
+        )
+    idl_filename = string(file_basename, "_", params.br_isnap, ".idl")
+    snap_filename = string(file_basename, "_", params.br_isnap, ".snap")
+    aux_filename = string(file_basename, "_", params.br_isnap, ".aux")
+
+    println("tp.jl: Reading Bifrost fields...")
+    println("           Reading parameters from $(basename(idl_filename))")
+    br_params = br_read_params(idl_filename)
+    println("           Loading snap       from $(basename(snap_filename))")
+    br_snap = br_load_snapdata(snap_filename, br_params)
+    println("           Loading auxiliares from $(basename(aux_filename))")
+    br_aux = br_load_auxdata(aux_filename, br_params)
+
+    # Magnetic field
+    println("           Getting magnetic field from index...")
+    bx_code = br_snap[:,:,:,6]
+    by_code = br_snap[:,:,:,7]
+    bz_code = br_snap[:,:,:,8]
+    # Electric field
+    auxes = split(br_params["aux"])
+    ex_idx = findall(x -> x == "ex", auxes)
+    ey_idx = findall(x -> x == "ey", auxes)
+    ez_idx = findall(x -> x == "ez", auxes)
+    e_idxs = [length(ex_idx), length(ey_idx), length(ez_idx)]
+    if any(i -> i == 0, e_idxs)
+        error("Did not find all electric field components in aux-file")
+    end
+    println("           Getting electric field from index...")
+    ex_code = br_aux[:,:,:,ex_idx...]
+    ey_code = br_aux[:,:,:,ey_idx...]
+    ez_code = br_aux[:,:,:,ez_idx...]
+
+    pbc_x = Bool(br_params["periodic_x"])
+    pbc_y = Bool(br_params["periodic_y"])
+    pbc_z = Bool(br_params["periodic_z"])
+
+    #-----------------------------------------------------------------------
+    # Destagger and scale variables to SI-units
+    #
+    # Vector quiantities are defined at the faces, while scalar quantities
+    # are defined at cell centres. To get the bulk velcity at the centre
+    # one thus have to interpolate the momentum to the cell centres.
+    #
+    # br_xup moves values half a grid in the x-direction.
+    # params["u_u"] scales velocity from model/code-units to CGS units. 
+    # params["u_b"] scales magnetic field from model/code-units to CGS units. 
+    # cgs2SI_u scales velocity from CGS-units to SI-units
+    # cgs2SI_b scales magnetic field from CGS-units to SI-units
+    code2cgs_u = wfp(br_params["u_u"])
+    code2cgs_b = wfp(br_params["u_B"])
+    code2cgs_l = wfp(br_params["u_l"])
+    code2cgs_e = code2cgs_u * code2cgs_b
+
+    # De-stagger and scale magnetic field
+    println("           De-staggering: bx")
+    bx = br_xup(bx_code, pbc_x)
+    println("                          by")
+    by = br_yup(by_code, pbc_y)
+    println("                          bz")
+    bz = br_zup(bz_code, pbc_z)
+    println("                          ex")
+    ex = br_yup(br_zup(ex_code, pbc_z), pbc_y)
+    println("                          ey")
+    ey = br_zup(br_xup(ey_code, pbc_x), pbc_z)
+    println("                          ez")
+    ez = br_xup(br_yup(ez_code, pbc_y), pbc_x)
+
+
+    println("            Scaling to CGS-units")
+    bx *= code2cgs_b 
+    by *= code2cgs_b 
+    bz *= code2cgs_b 
+    ex *= code2cgs_e 
+    ey *= code2cgs_e 
+    ez *= code2cgs_e 
+
+    # Scale to SI-units
+    if params.SI_units
+        println("            Scaling to SI-units")
+        bx *= wfp(cgs2SI_b)
+        by *= wfp(cgs2SI_b)
+        bz *= wfp(cgs2SI_b)
+        ex *= wfp(cgs2SI_e)
+        ey *= wfp(cgs2SI_e)
+        ez *= wfp(cgs2SI_e)
+    else
+        println("            ** NOT SCALING TO SI **")
+    end
+
+    # Reshape to form necessary for tp (currently)
+    meshsize = [size(bx)...]
+    constant_dim_idx = nothing
+    if any(i -> i == 1, meshsize)
+        idxs = findall(x -> x == 1, meshsize)
+        if length(idxs) > 1
+            error("1D snaps is not yet supported.")
+        end
+        constant_dim_idx = idxs[1]
+        meshsize[constant_dim_idx] = 2
+    end 
+    println("           Allocating arrays for reshaping...")
+    bfield  = Array{wfp}(undef, ndims, meshsize...)
+    efield  = Array{wfp}(undef, ndims, meshsize...)
+    println("           Reshaping...")
+    if constant_dim_idx == 2
+        println("               Bifrost simulation is 2D in the XZ-plane.")
+        for i = 1:2
+            bfield[1,:,i,:] = bx
+            bfield[2,:,i,:] = by
+            bfield[3,:,i,:] = bz
+            efield[1,:,i,:] = ex
+            efield[2,:,i,:] = ey
+            efield[3,:,i,:] = ez
+        end
+    elseif constant_dim_idx == 1 && constant_dim_idx == 3
+        error("2D Bifrost simualtions in XY and YZ planes not yet supported")
+    else
+        bfield[1,:,:,:] = bx
+        bfield[2,:,:,:] = by
+        bfield[3,:,:,:] = bz
+        efield[1,:,:,:] = ex
+        efield[2,:,:,:] = ey
+        efield[3,:,:,:] = ez
+    end
+    return bfield, efield
+end
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 function tp_createmesh!(
     params::Parameters
     )
     #---------------------------------------------------------------------------
     # Construct mesh
-    #---------------------------------------------------------------------------
     if params.bg_input == "br"
         mesh = Mesh(params.br_expname, params.br_expdir, params.br_isnap;
                     wfp=params.wp_snap)
@@ -293,9 +638,9 @@ function tp_createmesh!(
 end
 
 
-function tp_createparticles!(
+function tp_get_initial_pos_and_vel!(
     params::Parameters,
-    mesh  ::Mesh,
+    mesh  ::AbstractMesh,
     )
     # Define variables to avoid magic numbers
     numdims = 3
@@ -319,15 +664,7 @@ function tp_createparticles!(
         if !isdefined(params, :poszbounds)
             params.poszbounds = [mesh.zCoords[1], mesh.zCoords[end]]
         end
-        pos = inituniform(params.npart,
-                                    params.posxbounds,
-                                    params.posybounds,
-                                    params.poszbounds,
-                                    params.wp_part
-                                    ;
-                                    params.seed
-                                    )
-    elseif params.pos_distr == "point"
+     elseif params.pos_distr == "point"
         if !isdefined(params, :posxbounds)
             params.posxbounds = [(mesh.xCoords[1] - mesh.xCoords[end])/2.0]
         end
@@ -337,32 +674,26 @@ function tp_createparticles!(
         if !isdefined(params, :poszbounds)
             params.poszbounds = [(mesh.zCoords[1] - mesh.zCoords[end])/2.0]
         end
-        pos = ones(params.wp_part, numdims, params.npart)
-        # If particles are given by coordinates
-        if (length(params.posxbounds) ==
-            length(params.posybounds) ==
-            length(params.poszbounds) == params.npart)
-            pos[1,:] = params.posxbounds
-            pos[2,:] = params.posybounds
-            pos[3,:] = params.poszbounds
-        else
-            pos[1,:] *= params.posxbounds[1]
-            pos[2,:] *= params.posybounds[1]
-            pos[3,:] *= params.poszbounds[1]
-        end
     else
         error("Invalid parameter value: pos_distr")
     end
-    # IMPLEMENT e.g
-    #
-    # position distributed according to density
-    #
 
+    pos = get_initial_positions(
+                        params.npart,
+                        params.pos_distr,
+                        params.posxbounds,
+                        params.posybounds,
+                        params.poszbounds,
+                        params.wp_part
+                        ;
+                        seed=params.seed
+                        )
+                        
     # Velocities
+    stds = Array{params.wp_part}(undef, params.npart)
     if params.vel_distr == "mb"
         # Get temperature 
         if params.bg_input == "br"
-            vel = ones(numdims, params.npart)
             # Temperature has code-units equal to Kelvin, no need for scaling.
             br_temp = dropdims(br_load_auxvariable(params.br_expname,
                                           [params.br_isnap],
@@ -372,9 +703,10 @@ function tp_createparticles!(
                                                    ),
                                dims=numdims + 1
                                )
-            for i = 1:params.npart
+            println("           Finding temperatures at initial positions")
+            @time for i = 1:params.npart
                 # Interpolate the temperature at the position of the particle
-                x⃗ = pos[:,i]
+                x = pos[:,i]
                 if params.interp == "bilinear_xz-GCA"
                     interp = methodmap["bilinear_xz"]
                 elseif params.interp == "trilinear-GCA"
@@ -382,19 +714,19 @@ function tp_createparticles!(
                 else
                     interp = methodmap[params.interp]
                 end 
-                t, _ = gridinterp(br_temp,
-                               interp,
-                               x⃗,
-                               mesh.xCoords,
-                               mesh.yCoords,
-                               mesh.zCoords,
-                               )
+                if params.patch_type == "STD"
+                    xx = mesh.xCoords
+                    yy = mesh.yCoords
+                    zz = mesh.zCoords
+                else
+                    xx = mesh.x
+                    yy = mesh.y
+                    zz = mesh.z
+                end 
+                t, _ = gridinterp(br_temp, interp, x, xx, yy, zz) 
                 # Standard deviation of velocity
                 σ = √(k_B*t/specieTable[params.specie[i], 1])
-                # Expectance value of particle velocity components is zero
-                μ = 0.0
-                # Draw velocity components from normal-distribution
-                vel[:,i] = randn(μ, σ, (numdims); seed=params.seed+i)
+                stds[i] = σ
             end
         else
             error(string("\"mb\" velocity distribution only available with ",
@@ -407,41 +739,31 @@ function tp_createparticles!(
         if !isdefined(params, :T)
             error("Parameter not defined: T")
         end
-        vel = ones(numdims, params.npart)
         for i = 1:params.npart
             # Standard deviation of velocity
             σ = √(k_B*params.T/specieTable[params.specie[i], 1])
-            # Expectance value of particle velocity components is zero
-            μ = 0.0
-            # Draw velocity components from normal-distribution
-            vel[:,i] = randn(μ, σ, (numdims); seed=params.seed+i)
+            stds[i] = σ
         end
-    elseif params.vel_distr == "uniform"
-        vel = inituniform(params.npart,
-                                    params.velxbounds,
-                                    params.velybounds,
-                                    params.velzbounds,
-                                    params.wp_part
-                                    ;
-                                    seed=params.seed
-                                    )
-    elseif params.vel_distr == "point"
-        vel = ones(params.wp_part, numdims, params.npart)
-        if (length(params.velxbounds) ==
-            length(params.velybounds) ==
-            length(params.velzbounds) == params.npart)
-            vel[1,:] = params.velxbounds
-            vel[2,:] = params.velybounds
-            vel[3,:] = params.velzbounds
-        else
-            vel = ones(numdims, params.npart)
-            vel[2,:] *= params.velybounds[1]
-            vel[3,:] *= params.velzbounds[1]
-        end
-    else
-        error("Invalid parameter value: vel_distr")
     end
+    vel = get_initial_velocities(
+        params.npart,
+        params.vel_distr,
+        params.velxbounds,
+        params.velybounds,
+        params.velzbounds,
+        params.wp_part
+        ;
+        seed=params.seed,
+        stds=stds
+    )
+    return pos, vel
+end
 
+function tp_createparticles!(
+    params::Parameters,
+    pos::AbstractArray,
+    vel::AbstractArray
+)
     #
     # Next, create the actual particle instances based on the solver (full orbit
     # or GCA).
@@ -532,42 +854,48 @@ end
 #----------------------------------------#
 # Saving and loading Experiment or files #
 #----------------------------------------#--------------------------------------
+function get_basename(
+    params::Parameters
+    ; 
+    expname=nothing, 
+    expdir=nothing
+    )
+    #
+    # Check whether path for saving files is defined.
+    #
+    if expname === nothing
+        if !isdefined(params, :tp_expname)
+            error(string("Experiment name `tp_expname` needed for saving.",
+                         " Specify it in `Parameters` or give as argument to",
+                         " `tp_saveExp`."))
+        else
+            expname = params.tp_expname
+        end
+    end
+    if expdir === nothing
+        if !isdefined(params, :tp_expdir)
+            error(string("Experiment directory `tp_expdir` needed for saving.",
+                         " Specify it in `Parameters` or give as argument to",
+                         " `tp_saveExp`."))
+        else
+            expdir = params.tp_expdir
+        end
+    end
+    return string(expdir, "/", expname)
+end
+
 function tp_save(
     exp    ::Experiment
     ;
     expname=nothing,
     expdir=nothing,
     )
-    #
-    # Check whether path for saving files is defined.
-    #
-    if expname == nothing
-        if !isdefined(exp.params, :tp_expname)
-            error(string("Experiment name `tp_expname` needed for saving.",
-                         " Specify it in `Parameters` or give as argument to",
-                         " `tp_saveExp`."))
-        else
-            expname = exp.params.tp_expname
-        end
-    end
-    if expdir == nothing
-        if !isdefined(exp.params, :tp_expdir)
-            error(string("Experiment directory `tp_expdir` needed for saving.",
-                         " Specify it in `Parameters` or give as argument to",
-                         " `tp_saveExp`."))
-        else
-            expdir = exp.params.tp_expdir
-        end
-    end
 
-    # To avoid magic numbers
-    numdims = 3
-
+    basename = get_basename(exp.params; expname=expname, expdir=expdir)
     println("tp.jl: Saving experiment...")
     #
     # Construct filenames
     #
-    basename = string(expdir, "/", expname)
     tp_filename = string(basename, ".tp")
     mesh_filename = string(basename, ".mesh")
     bg_filename = string(basename, ".bg")
@@ -579,7 +907,11 @@ function tp_save(
     #
     # Write particle positions, velocity and life-status
     #
-    tp_savetp(exp, tp_filename)
+    if exp.params.patch_type == "DE"
+        @warn "Use tp_save(::EnsambleSolution) to save particles of a DEPatch."
+    else 
+        tp_savetp(exp, tp_filename)
+    end
     
     #
     # Write mesh (NB! here I seperate the fields from the mesh)
@@ -589,8 +921,9 @@ function tp_save(
     #
     # Write background fields
     #
-    tp_savebg(exp, bg_filename)
-
+    if exp.params.patch_type == "STD"
+        tp_savebg(exp, bg_filename)
+    end
     #
     # Write parameters
     #
@@ -598,6 +931,154 @@ function tp_save(
 
     #
 end # function tp_saveExp
+
+function tp_save(
+    sol::EnsembleSolution,
+    params::Parameters,
+    ;
+    expname=nothing,
+    expdir=nothing,
+    )
+    basename = get_basename(params; expname=expname, expdir=expdir)
+    tp_filename = string(basename, ".tp")
+
+    jldopen(tp_filename, "w") do file
+        write(file, "npart", params.npart)
+        for i = 1:params.npart
+            write(file, "u$i", sol.u[i].u)
+            write(file, "t$i", sol.u[i].t)
+        end
+    end
+    println("tp.jl: Wrote $tp_filename")
+end
+
+function tp_save(
+    u::Vector{ODESolution},
+    params::Parameters,
+    ;
+    expname=nothing,
+    expdir=nothing,
+    )
+    basename = get_basename(params; expname=expname, expdir=expdir)
+    tp_filename = string(basename, ".tp")
+
+    npart = length(u)
+    jldopen(tp_filename, "w") do file
+        write(file, "npart", npart)
+        for i = 1:npart
+            write(file, "u$i", u[i].u)
+            write(file, "t$i", u[i].t)
+        end
+    end
+    println("tp.jl: Wrote $tp_filename")
+end
+
+#-----------------------------------------------------
+function getu0(
+    u   ::Vector{<:ODESolution},
+    )
+    npart = length(u)[1]
+    ndof = length(u[1].u[1])
+    RealT = typeof(u[1].u[1][1])
+    u0 = Array{RealT}(undef, ndof, npart)
+    for i = 1:npart
+        u0[:,i] .= u[i].u[1]
+    end
+    return u0
+end
+   
+function getuf(
+    u   ::Vector{<:ODESolution},
+    )
+    npart = length(u)[1]
+    ndof = length(u[1].u[1])
+    RealT = typeof(u[1].u[1][1])
+    uf = Array{RealT}(undef, ndof, npart)
+    for i = 1:npart
+        uf[:,i] .= u[i].u[end]
+    end
+    return uf
+end
+
+function getenergy(
+    mu   ::Vector{<:Real},
+    mass ::Any,
+    B_itp::Vector{AbstractInterpolation},
+    u    ::Matrix{<:Real}=getu0(u),
+    )
+    R = u[1:3,:]
+    vparal = u[4,:]
+    vperp = getvperp(u[1:3,:], mu, mass, B_itp)
+
+    nparts = length(mu)
+    RealT = typeof(mu[1])
+    v2 = Array{RealT}(undef, nparts)
+    E_k = Array{RealT}(undef, nparts)
+    
+    @. v2 = vparal^2 + vperp^2
+    @. E_k = 0.5*mass*v2
+    
+    return E_k
+end 
+
+function getvperp(
+    R     ::Matrix{<:Real},
+    mu    ::Vector{<:Real},
+    mass  ::Any,
+    B_itp::Vector{AbstractInterpolation},
+    )
+    ndims, npart = size(R)
+    RealT = typeof(R).parameters[1]
+    vperp = Array{RealT}(undef, npart)
+    if typeof(mass) <: Real
+        mass = ones(RealT, npart)*mass
+    end
+    for i = 1:npart
+        B_vec = [ B_itp[1](R[:,i]...), B_itp[2](R[:,i]...), B_itp[3](R[:,i]...) ]
+        B = norm(B_vec)
+        vperp[i] = √(2mu[i]*B/mass[i])
+    end # loop over i: particles
+    return vperp
+end # function getvperp
+
+
+function tp_save_fast(
+    u  ::Vector{<:ODESolution},
+    exp::Experiment,
+    ;
+    expname=nothing,
+    expdir=nothing,
+    )
+    basename = get_basename(exp.params; expname=expname, expdir=expdir)
+    tp_filename = string(basename, ".tp")
+    u0 = getu0(u)
+    uf = getuf(u)
+    Ek0 = getenergy(
+        exp.patch.tp.p.mu,
+        exp.patch.tp.p.m,
+        exp.patch.tp.p.B,
+        u0
+    )
+    Ekf = getenergy(
+        exp.patch.tp.p.mu,
+        exp.patch.tp.p.m,
+        exp.patch.tp.p.B,
+        uf
+    )
+    ndof, npart = size(u0)
+    file = open(tp_filename, "w+")
+    write(file, ndof)
+    write(file, npart)
+    write(file, u0)
+    write(file, uf)
+    write(file, Ek0)
+    write(file, Ekf)
+    close(file)
+    println("tp.jl: Wrote $tp_filename")
+end
+
+#-----------------------------------------------------
+    
 
 
 function tp_saveparams(
@@ -648,14 +1129,15 @@ function tp_savemesh(
     filename::String,
     )
     f = open(filename, "w+")
-    write(f, exp.patch.mesh.xCoords)
-    write(f, exp.patch.mesh.yCoords)
-    write(f, exp.patch.mesh.zCoords)
-   # write(f, [exp.patch.mesh.xCoords[:];
-   #           exp.patch.mesh.yCoords[:];
-   #           exp.patch.mesh.zCoords[:];
-   #           ]
-   #       )
+    if exp.params.patch_type == "DE"
+        write(f, exp.patch.mesh.x)
+        write(f, exp.patch.mesh.y)
+        write(f, exp.patch.mesh.z)
+    else
+        write(f, exp.patch.mesh.xCoords)
+        write(f, exp.patch.mesh.yCoords)
+        write(f, exp.patch.mesh.zCoords)
+    end
     close(f)
     println("tp.jl: Wrote $filename")
 end # function tp_savemesh
@@ -689,17 +1171,21 @@ function tp_load(
     # Parse filenames
     basename = string(expdir, "/", expname)
     tp_filename = string(basename, ".tp")
-    if mesh_filename == nothing
+    if mesh_filename === nothing
         mesh_filename = string(basename, ".mesh")
     end
-    if bg_filename == nothing
+    if bg_filename === nothing
         bg_filename = string(basename, ".bg")
     end
 
     #
     # Open tp-file
     #
-    pos, vel, μ = tp_loadtp(params, tp_filename)
+    if params.patch_type == "DE"
+        @warn "Load DEPatch results with tp_loadsol"
+    else
+        pos, vel, μ = tp_loadtp(params, tp_filename)
+    end
     #
     # Open mesh-file
     #
@@ -707,29 +1193,34 @@ function tp_load(
     #
     # Open bg-file
     #
-    bField, eField, ∇B, ∇b̂, ∇ExB = tp_loadbg(params, bg_filename) 
+    if params.patch_type == "STD"
+        bField, eField, ∇B, ∇b̂, ∇ExB = tp_loadbg(params, bg_filename) 
+    end
     #
     # Create Mesh, ParticleSoA, Patch and Experiment
     #
-    mesh = Mesh(bField, eField, ∇B, ∇b̂, ∇ExB, x, y, z)
-    if usingGCA(params)
-        particles = GCAParticleSoA(pos, vel, μ, params.specie)
+    if params.patch_type == "STD"
+        mesh = Mesh(bField, eField, ∇B, ∇b̂, ∇ExB, x, y, z)
+        if usingGCA(params)
+            particles = GCAParticleSoA(pos, vel, μ, params.specie)
+        else
+            particles = ParticleSoA(pos, vel, params.specie)
+        end
+        patch = Patch(mesh,
+                      particles,
+                      methodmap[params.solver],
+                      methodmap[params.scheme],
+                      methodmap[params.interp],
+                      params.dt,
+                      params.nsteps,
+                      params.npart,
+                      params.pbc
+                      )
+        exp = Experiment(params, patch);
+        return exp
     else
-        particles = ParticleSoA(pos, vel, params.specie)
+        return x, y, z
     end
-    patch = Patch(mesh,
-                  particles,
-                  methodmap[params.solver],
-                  methodmap[params.scheme],
-                  methodmap[params.interp],
-                  params.dt,
-                  params.nsteps,
-                  params.npart,
-                  params.pbc
-                  )
-    exp = Experiment(params, patch);
-    #
-    return exp
 end # function tp_load
 
 
@@ -820,22 +1311,73 @@ function tp_loadbg(
 end
 
 
+function tp_loadsol(
+    filename::String,
+    RealT   ::DataType
+    )
 
+    # Read size of EnsambleSolution
+    sizes = Array{Int64}(undef, 3)
+    f = open(filename)
+    read!(f, sizes)
+    npart, ndof, ndsteps = sizes
+
+    u, t = jldopen(filename, "r") do file
+        npart = read(file, "npart")
+        u = Vector{Vector{Vector{RealT}}}(undef, npart)
+        t = Vector{Vector{RealT}}(undef, npart)
+        for i = 1:npart
+            u[i] = read(file, "u$i")
+            t[i] = read(file, "t$i")
+        end
+        return u, t
+    end
+    return u, t
+end
+
+
+function tp_load_fast(
+    filename::String,
+    RealT   ::DataType
+    )
+    file = open(filename)
+    ndof = read(file, Int64)
+    npart = read(file, Int64)
+    u0 = Array{RealT}(undef, ndof, npart)
+    uf = Array{RealT}(undef, ndof, npart)
+    Ek0 = Array{RealT}(undef, npart)
+    Ekf = Array{RealT}(undef, npart)
+    read!(file, u0)
+    read!(file, uf)
+    read!(file, Ek0)
+    read!(file, Ekf)
+    close(file)
+    return ndof, npart, u0, uf, Ek0, Ekf
+end
+    
 #---------------------#
 # Running Experiments #
 #---------------------#---------------------------------------------------------
 function tp_run!(
     exp::Experiment
     )
-    statement = string("tp.jl: Running simulation:\n",
-                       "\tnpart:  $(exp.params.npart)\n",
-                       "\tnsteps: $(@sprintf("%.2e", exp.params.nsteps))\n",
-                       "\tdt:     $(exp.params.dt)\n",
-                       "\tNumber of iterations: ",
-                       "$(@sprintf("%.2e",exp.params.npart*exp.params.nsteps))"
-                       )
+    if exp.params.patch_type == "STD"
+        statement = string("tp.jl: Running simulation:\n",
+            "\tnpart:  $(exp.params.npart)\n",
+            "\tnsteps: $(@sprintf("%.2e", exp.params.nsteps))\n",
+            "\tdt:     $(exp.params.dt)\n",
+            "\tNumber of iterations: ",
+            "$(@sprintf("%.2e",exp.params.npart*exp.params.nsteps))"
+            )
+    elseif exp.params.patch_type == "DE"
+        statement = string("tp.jl: Running simulation:\n",
+            "\tnpart:  $(exp.params.npart)\n",
+            "\ttspan: $(@sprintf("(%.2e, %.2e)", exp.params.tspan...))\n",
+            )
+    end
     println(statement)
-    run!(exp.patch)
+    res = run!(exp.patch)
+    return res
 end # function tp_run
 
 
@@ -885,17 +1427,33 @@ function checkrequirements(
     )
     if params.npart == nothing
         error("Missing parameter: npart")
-    elseif params.nsteps == nothing
-        error("Missing parameter: nsteps")
-    elseif params.dt == nothing
-        error("Missing parameter: dt")
-    elseif params.solver == nothing
-        error("Missing parameter: solver")
-    elseif params.scheme == nothing
-        error("Missing parameter: scheme")
-    elseif params.interp == nothing
-        error("Missing parameter: interp")
     end
+    if params.patch_type == "STD"
+        if params.npart > length(params.specie)
+            error("Number of particles outnumbers the length of species.")
+        elseif params.nsteps == nothing
+            error("Missing parameter: nsteps")
+        elseif params.dt == nothing
+            error("Missing parameter: dt")
+        elseif params.solver == nothing
+            error("Missing parameter: solver")
+        elseif params.scheme == nothing
+            error("Missing parameter: scheme")
+        elseif params.interp == nothing
+            error("Missing parameter: interp")
+        end
+    elseif params.patch_type == "DE"
+        if params.npart < length(params.charge)
+            error("Number of charges outnumbers the length of particles.")
+        elseif params.tspan == nothing
+            error("Missing parameter: tspan")
+        elseif params.charge == nothing
+            error("Missing parameter: charge")
+        elseif params.mass == nothing
+            error("Missing parameter: mass")
+        end
+    end
+
     if all(i -> isdefined(params, i), (:br_expname,
                                        :br_expdir,
                                        :br_isnap
@@ -912,14 +1470,11 @@ function checkrequirements(
     if params.bg_input == nothing
         error("Missing paramter: bg_input")
     end
-    if params.npart > length(params.specie)
-        error("Number of particles outnumbers the length of specie-parameter.")
-    end
 end
 
 
 function usingGCA(params::Parameters)
-    if params.solver in gcasolvers
+    if params.solver in gca_solvers
         return true
     else
         return false

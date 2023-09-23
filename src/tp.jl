@@ -19,6 +19,8 @@ using Random:           MersenneTwister
 using Printf
 using DifferentialEquations
 using Interpolations
+using JLD
+using Distributed
 
 using BifrostTools
 
@@ -58,6 +60,7 @@ export TParticle, FOStaticIC, LorentzForce, electron, ODEParticle, Lorentzforce,
         FOParams, lorentz_force!, GCAParams, GCAStaticIC
 export Patch, run!, update, DEPatch
 export compute_gradients, derivateUpwind, EMfield_itps, calc_GCA_IC_and_mu
+export DE_init!
 
 
 # meshes.jl
