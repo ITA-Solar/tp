@@ -25,14 +25,45 @@ function run!(patch::DEPatch)
     update(patch)
 end 
 
+
 function update(patch::DEPatch)
+
+    function condition(u,t,integrator) 
+        return u[1] <= 14.52e6 || u[1] >= 18.83e6 ||
+                u[3] <= -7.79e6 || u[3] >= -3.88e6
+    end
+    affect!(integrator) = terminate!(integrator)
+    cb = DiscreteCallback(condition,affect!)
+
     prob = get_problem(patch.tp, patch.tspan)
-    # How to get prob_func for ensamble simulations?
-    ensamble_prob = EnsembleProblem(prob, prob_func=get_prob_func(patch.tp))
-    sim = solve(ensamble_prob, 
-                EnsembleSerial(), 
-                trajectories=patch.tp.npart # or just patch.solver?
-                )
+
+    ## For distributed parallelisation
+    #println("Defining prob-function")
+    #@everywhere function prob_func(prob, i, repeat)
+    #    remake(prob, u0=patch.tp.ic(i), p=patch.tp.p(i))
+    #end
+    #function prob_func(prob, i, repeat)
+    #    remake(prob, u0=patch.tp.ic(i), p=patch.tp.p(i))
+    #end
+
+    ensamble_prob = EnsembleProblem(
+        prob, 
+        prob_func=get_prob_func(patch.tp)
+        ;
+        safetycopy=false,
+    )
+    @time sim = solve(
+        ensamble_prob, 
+        EnsembleSerial()
+        #EnsembleThreads()
+        #EnsembleSplitThreads()
+        #EnsembleDistributed()
+        ;
+        trajectories=patch.tp.npart, # or just patch.solver?
+        progress=true,
+        callback=cb,
+        maxiters=1000  
+    )
 end
 
 #------------------#
