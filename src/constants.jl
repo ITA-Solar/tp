@@ -28,6 +28,7 @@ e_cgs_esu = 4.80320427e-10 # Fr
 m_e_cgs = 9.10938370e-28 # g
 
 # Unit conversion
+cgs2SI_t = 1e0  # s * 1 s/s ..........................cgs-seconds to SI
 cgs2SI_u = 1e-2 # cm/s * 1e-2 m/cm = m/s....cgs-velocity to SI-velocity
 cgs2SI_b = 1e-4 # G * 1e-4 T/G = T.............cgs-magnetic field to SI
 cgs2SI_l = 1e-2 # cm * 1e-2 m/cm = m............cgs-length to SI-length
