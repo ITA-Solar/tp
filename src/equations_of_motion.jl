@@ -323,7 +323,7 @@ end
 
 struct GCA
 end
-function (gca::GCA)(du, u, p, t)
+function (gca::GCA)(du, u, p, _)
     R = u[1:3]
     vparal = u[4] # Particle velocity parallel to the magnetic field
     # Extract parameters
@@ -370,4 +370,103 @@ function (gca::GCA)(du, u, p, t)
     #   each R calculate vperp at each R. Could be interesting to store this
     #   as an auxiliary variable somehow, to se how the drift evolves.
     du[:] = [dRdt; dvparaldt]
+end
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Stochastic differential equations
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+struct ConstantAdvection
+end
+function (eom::ConstantAdvection)(du, _, p, _)
+    du .= p
+end
+function (eom::ConstantAdvection)(_, p, _)
+    return p
+end
+
+struct ConstantDiffusion
+end
+function (eom::ConstantDiffusion)(du, _, p, _)
+    du .= p
+end
+function (eom::ConstantDiffusion)(_, p, _)
+    return p
+end
+
+struct ProportionalAdvection
+end
+function (eom::ProportionalAdvection)(du, u, p, _)
+    du .= p*u
+end
+function (eom::ProportionalAdvection)(u, p, _)
+    return p*u
+end
+
+struct ProportionalDiffusion
+end
+function (eom::ProportionalDiffusion)(du, u, p, _)
+    du .= p*u
+end
+function (eom::ProportionalDiffusion)(u, p, _)
+    return p*u
+end
+
+struct DuffingVanDerPolOscillatorDrift
+end
+function (eom::DuffingVanDerPolOscillatorDrift)(du, u, p, _)
+    X, V = u
+    dXdt = V
+    dVdt = (X*(p - X^2) - V)
+    du .= [dXdt; dVdt]
+end
+function (eom::DuffingVanDerPolOscillatorDrift)(u, p, _)
+    X, V = u
+    dXdt = V
+    dVdt = (X*(p - X^2) - V)
+    return [dXdt; dVdt]
+end
+
+struct DuffingVanDerPolOscillatorDiffusion
+end
+function (eom::DuffingVanDerPolOscillatorDiffusion)(du, u, p, _)
+    X, _ = u
+    dXdW = 0.0
+    dVdW = p*X
+    du .= [dXdW; dVdW]
+end
+function (eom::DuffingVanDerPolOscillatorDiffusion)(u, p, _)
+    X, _ = u
+    dXdW = 0.0
+    dVdW = p*X
+    return [dXdW; dVdW]
+end
+
+struct OrnsteinUhlenbeckDrift
+end
+function (eom::OrnsteinUhlenbeckDrift)(du, u, p, _)
+    _, V = u
+    dXdt = V
+    dVdt = -V/p
+    du .= [dXdt, dVdt]
+end
+function (eom::OrnsteinUhlenbeckDrift)(u, p, _)
+    _, V = u
+    dXdt = V
+    dVdt = -V/p
+    return [dXdt, dVdt]
+end
+
+struct OrnsteinUhlenbeckDiffusion
+end
+function (eom::OrnsteinUhlenbeckDiffusion)(du, _, p, _)
+    dXdW = 0.0
+    dVdW = p
+    du .= [dXdW, dVdW]
+end
+function (eom::OrnsteinUhlenbeckDiffusion)(_, p, _)
+    dXdW = 0.0
+    dVdW = p
+    return [dXdW, dVdW]
 end
