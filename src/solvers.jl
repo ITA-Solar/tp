@@ -99,6 +99,49 @@ function rk4(
     return yn + h/6*(k1 + 2k2 + 2k3 + k4)
 end # function rk4
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#  For stochastic differential equations (SDEs)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+function euler_maruyama(
+    X,
+    t,
+    dt,
+    dW,
+    drift,
+    diffusion,
+    drift_params,
+    diffusion_params
+    )
+    # The drift coefficient
+    a = drift(X, drift_params, t)
+    b = diffusion(X, diffusion_params, t)
+    return a*dt + b*dW
+end
+
+function milstein_central(
+    X,
+    t,
+    dt,
+    dW,
+    drift,
+    diffusion,
+    drift_params,
+    diffusion_params
+    )
+    # Extract the parameters:
+    #   The constant drift coefficient
+    #   the constan diffusion coefficient
+    a = drift(X, drift_params, t)
+    b = diffusion(X, diffusion_params, t)
+    delta = 0.5e-6
+    dbdX = (diffusion(X .+ delta, diffusion_params, t)
+           .- diffusion(X .- delta, diffusion_params, t)
+           )./2delta
+    return a*dt + + b*dW + 0.5*b .* dbdX * (dW^2 - dt)
+end
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 """
     vay(pos, vel, specie, bField, eField, dt, scheme)
 
