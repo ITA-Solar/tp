@@ -86,3 +86,28 @@ end
 function (p::GCAParams{Vector{<:Real},<:Real})(i::Int64=1)
     return (p.q, p.m. p.mu[i], p.B, p.E, p.gradB, p.gradb, p.gradExB)
 end 
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# For stochastic differential equations (SDEs)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+struct SingleCoefficientParams{RealT} <: AbstractProblemParameters
+    alpha::RealT
+end
+function (p::SingleCoefficientParams{<:Real})(_::Int64)
+    return (p.alpha)
+end
+
+struct DoubleCoefficientParams{RealT} <: AbstractProblemParameters
+    alpha::RealT
+    beta ::RealT
+end
+function (p::DoubleCoefficientParams{<:Real})(_::Int64)
+    return (p.alpha, p.beta)
+end
+
+struct NoParams
+end
+function (p::NoParams)(_::Int64)
+    return ()
+end

@@ -63,6 +63,15 @@ function (ic::VectorIC)(i::Integer=1)
     return ic.vec[i]
 end
 
+
+struct PhaseSpace1DIC <: AbstractInitialConditions
+    x::AbstractVariableIC
+    v::AbstractVariableIC
+end
+function (ic::PhaseSpace1DIC)(i::Int64=1)
+    return [ic.x(i); ic.v(i)]
+end
+
 #-------------------------------------------------------------------------------
 # On the fly generalisation of initial conditions
 #
