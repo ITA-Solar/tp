@@ -33,7 +33,6 @@ struct ODEParticle{Equations} <: AbstractParticle
     npart::Int64
 end
 
-
 function get_problem(part::ODEParticle, tspan)
     return ODEProblem(part.eom, part.ic(), tspan, part.p())
 end
@@ -45,6 +44,20 @@ function get_prob_func(part::ODEParticle)
                 )
 end
 
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# For stochastic differential equations (SDEs)
+#
+struct SDEParticle{DriftEq, DiffusionEq} <: AbstractParticle
+    eom_drift    ::DriftEq
+    eom_diffusion::DiffusionEq
+    ic           ::AbstractInitialConditions
+    p_drift      ::AbstractProblemParameters
+    p_diffusion  ::AbstractProblemParameters
+    npart        ::Int64
+end
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
 #------------------#
 # Legacy-particles #
 #------------------#------------------------------------------------------------
