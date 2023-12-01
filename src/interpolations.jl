@@ -68,3 +68,21 @@ function EMfield_itps(
     gradExB_itp = tensor_interpolate(axes, gradExB, itp_type, itp_bc)
     return B_itp, E_itp, gradB_itp, gradb_itp, gradExB_itp
 end
+function EMfield_itps(
+    mesh   ::AbstractMesh,
+    B      ::AbstractArray,
+    E      ::AbstractArray,
+    gradB  ::AbstractArray,
+    gradb  ::AbstractArray,
+    gradExB::AbstractArray,
+    n      ::AbstractArray,
+    T      ::AbstractArray,
+    )
+    itp_type = Gridded(Linear())
+    itp_bc = Flat()
+    axes = (mesh.x, mesh.y, mesh.z)
+    println("           Creating interpolation objects: n")
+    n_itp = tensor_interpolate(axes, n, itp_type, itp_bc)
+    T_itp = tensor_interpolate(axes, T, itp_type, itp_bc)
+    return EMfield_itps(mesh, B, E, gradB, gradb, gradExB)..., n_itp, T_itp
+end

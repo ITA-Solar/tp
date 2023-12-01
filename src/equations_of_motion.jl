@@ -470,3 +470,110 @@ function (eom::OrnsteinUhlenbeckDiffusion)(_, p, _)
     dVdW = p
     return [dXdW, dVdW]
 end
+
+struct GCA_pitchAngleFriction
+end
+function (eom::GCA_pitchAngleFriction)(du, u, p, _)
+    R = u[1:3]    # Position of the gyrocentre
+    vparal = u[4] # Particle velocity parallel to the magnetic field
+    beta = u[5]   # Cosine of pitch angle
+
+    # Extract parameters:
+    #
+    # Particle charge and particle mass and the Coulomb logarithm
+    q, m, coulomb_logarithm = p[1:3]
+    # interpolation objects of
+    # the magnetic vector field, the electric vector field, the magnetic
+    # gradient vector field, the gradient of the magnetic direction
+    # (a 3rd order tensor field), the gradient of the ExB-drift (a 3rd
+    # order tensor field), the number density of electrons (a scalar
+    # field), and the temperature (a scalar field)
+    B_itp, E_itp, gradB_itp, gradb_itp, gradExB_itp, n_itp, T_itp = p[4:10]
+
+    # Use the gyrocentre position interpolate the vectors, matrices and
+    # scalars from the interpolation objects.
+    B_vec = [B_itp[1](R...), B_itp[2](R...), B_itp[3](R...)]
+    E_vec = [E_itp[1](R...), E_itp[2](R...), E_itp[3](R...)]
+    gradB_vec = [ gradB_itp[1](R...), gradB_itp[2](R...), gradB_itp[3](R...) ]
+    gradb = [
+        gradb_itp[1,1](R...) gradb_itp[1,2](R...) gradb_itp[1,3](R...)
+        gradb_itp[2,1](R...) gradb_itp[2,2](R...) gradb_itp[2,3](R...)
+        gradb_itp[3,1](R...) gradb_itp[3,2](R...) gradb_itp[3,3](R...)
+        ]
+    gradExB = [
+        gradExB_itp[1,1](R...) gradExB_itp[1,2](R...) gradExB_itp[1,3](R...)
+        gradExB_itp[2,1](R...) gradExB_itp[2,2](R...) gradExB_itp[2,3](R...)
+        gradExB_itp[3,1](R...) gradExB_itp[3,2](R...) gradExB_itp[3,3](R...)
+        ]
+    n = n_itp(R...)
+    T = T_itp(R...)
+
+    # Calculate some quantities
+    B = norm(B_vec)   # The magnetic field strength
+    b_vec = B_vec/B   # An unit vector pointing in the direction of the
+                      #  magnetic field
+    mu = m*vparal^2/2B*(1/beta^2 - 1) # The magnetic moment
+    Eparal = E_vec⋅b_vec # Electric field component parallel to the
+                         # magnetic field
+
+    # Calculate drifts
+    ExBdrift = (E_vec × b_vec)/B
+    ∇Bdrift = mu/(q*B)*(b_vec × gradB_vec)
+
+    # Material derivatives of the magnetic field strength, the magnetic field
+    # direction, and the ExB-drift. Assumes ∂/∂t = 0
+    # See Ripperda et al. (2018) and notes.
+    dBdt = vparal * gradb ⋅ gradB_vec + ExBdrift ⋅ gradB_vec
+    dbdt = vparal * (gradb * b_vec) + gradb*ExBdrift
+    dExBdt = vparal * (gradExB * b_vec) + gradExB*ExBdrift
+
+    # Compute the perpendicular velcoity
+    dRperpdt = ExBdrift + ∇Bdrift + m*b_vec/(q*B) × (vparal*dbdt + dExBdt)
+
+    # Compute the acceleration along the magnetic field
+    dvparaldt = (q*Eparal - mu*b_vec⋅gradB_vec)/m
+    # With correction proposed by Birn et al., 2004:
+    #dvparaldt = (q*Eparal - μ*b̂⋅∇B)/m + ExBdrift⋅db̂dt + ∇Bdrift⋅db̂dt
+    #dRperpdt = b̂/B × (-c*E⃗ + μ*c/q * ∇B) #old
+
+    # Compute the total velocity of the guiding centre
+    dRdt = vparal*b_vec + dRperpdt
+
+    # Compute the pitch angle rate of change
+    dbetadt = (1/vparal*dvparaldt - 1/2B*dBdt)*beta*(1-beta^2)
+
+    # Compute the electron collision frequency
+    eta = 2.91e-6 * n * coulomb_logarithm * T^(-1.5)
+    beta_friction = -eta*beta
+
+
+    # Update the statevector
+    du .= [dRdt; dvparaldt; dbetadt + beta_friction]
+
+end
+
+struct GCA_pitchAngleDiffusion
+end
+function (eom::GCA_pitchAngleDiffusion)(du, u, params, _)
+    R = u[1:3]    # Position of the gyrocentre
+    beta = u[5]   # Cosine of pitch angle
+
+    # Extract parameters
+    # coulomb logarithm
+    coulomb_logarithm = params[3]
+    # number density and temperature interpolation objects
+    n_itp, T_itp = params[9:10]
+    # Interpolate density to guiding centre location
+    n = n_itp(R...)
+    T = T_itp(R...)
+
+    # Compute the electron collision frequency
+    eta = 2.91e-6 * n * coulomb_logarithm * T^(-1.5)
+
+    # Compute the diffusion coefficients
+    dRdW = [0,0,0]
+    dvparaldW = 0
+    dbetadW = √(eta*(1-beta^2))
+
+    du .= [dRdW; dvparaldW; dbetadW]
+end

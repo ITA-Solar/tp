@@ -72,6 +72,16 @@ function (ic::PhaseSpace1DIC)(i::Int64=1)
     return [ic.x(i); ic.v(i)]
 end
 
+struct GCAPitchAngleScatteringIC <: AbstractInitialConditions
+    rx    ::AbstractVariableIC
+    ry    ::AbstractVariableIC
+    rz    ::AbstractVariableIC
+    vparal::AbstractVariableIC
+    beta  ::AbstractVariableIC
+end
+function (ic::GCAPitchAngleScatteringIC)(i::Integer=1)
+    return [ic.rx(i), ic.ry(i), ic.rz(i), ic.vparal(i), ic.beta(i)]
+end
 #-------------------------------------------------------------------------------
 # On the fly generalisation of initial conditions
 #
