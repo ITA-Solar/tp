@@ -44,6 +44,7 @@ include("constants.jl")
 #include("problems.jl")
 #include("simulations.jl")
 # --- 
+include("callbacks.jl")
 include("solvers.jl")
 include("meshes.jl")
 include("tp_interpolations.jl") 
@@ -53,14 +54,26 @@ include("patches.jl")
 include("initial_conditions.jl")
 include("interpolations.jl")
 include("problem_parameters.jl")
+include("solve.jl")
 include("experiments.jl")
 	
 # Exports
-export TParticle, FOStaticIC, LorentzForce, electron, ODEParticle, Lorentzforce,
-        FOParams, lorentz_force!, GCAParams, GCAStaticIC
+export FOStaticIC, LorentzForce, ODEParticle, 
+        FOParams, GCAParams, GCAStaticIC
 export Patch, run!, update, DEPatch
 export compute_gradients, derivateUpwind, EMfield_itps, calc_GCA_IC_and_mu
 export DE_init!
+
+export VectorIC, FloatIC, AbstractInitialConditions, AbstractVariableIC
+export PhaseSpace1DIC
+export SingleCoefficientParams
+export DuffingVanDerPolOscillatorDrift, DuffingVanDerPolOscillatorDiffusion
+export OrnsteinUhlenbeckDrift, OrnsteinUhlenbeckDiffusion
+export ConstantAdvection, ConstantDiffusion
+export ProportionalAdvection, ProportionalDiffusion
+export SDEParticle, euler_maruyama, milstein_central
+export solve, solve_stoppingtime
+export DiscreteTPCallback
 
 
 # meshes.jl
@@ -69,7 +82,7 @@ export PureMesh
 export amplifyBfield! # Amplifies the magnetic field of the mesh by a factor
 export amplifyEfield! # Amplifies the elctric field of the mesh by a factor
 # particles.jl
-export FOParticle, get_eom, get_problem, get_ui, get_eom_params
+export get_problem
 export TraceParticle
 export ParticleSoA # Particles represented as struct of arrays
 export GCAParticleSoA
