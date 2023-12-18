@@ -1,35 +1,56 @@
 
-function tensor_interpolate(
-    axes       ::Tuple{Vector{<:Real}, Vector{<:Real}, Vector{<:Real}},
-    tensorfield::Array{<:Real, 4},
-    itp_type   ::Interpolations.InterpolationType,
-    itp_bc     ::Interpolations.BoundaryCondition,
-    ) 
-    num_components, _, _, _ = size(tensorfield)
-    itp = Array{AbstractInterpolation}(undef, num_components)
-    for i = 1:num_components
-        itp[i] = interpolate(axes, tensorfield[i,:,:,:], itp_type)
-        itp[i] = extrapolate(itp[i], itp_bc)
-    end 
-    return itp
-end
+struct tensor_interpolate
+    itp::Array{AbstractInterpolation}
 
-function tensor_interpolate(
-    axes       ::Tuple{Vector{<:Real}, Vector{<:Real}, Vector{<:Real}},
-    tensorfield::Array{<:Real, 5},
-    itp_type   ::Interpolations.InterpolationType,
-    itp_bc     ::Interpolations.BoundaryCondition,
-    ) 
-    num_components_m, num_components_n, _, _, _ = size(tensorfield)
-    num_components_i = size(tensorfield)[3]
-    itp = Array{AbstractInterpolation}(undef, num_components_m, num_components_n)
-    for n = 1:num_components_n
-        for m = 1:num_components_m
-            itp[m,n] = interpolate(axes, tensorfield[m,n,:,:,:], itp_type)
-            itp[m,n] = extrapolate(itp[m,n], itp_bc)
-        end
-    end 
-    return itp
+    function tensor_interpolate(
+        axes       ::Tuple{Vector{<:Real}, Vector{<:Real}, Vector{<:Real}},
+        tensorfield::Array{<:Real, 3},
+        itp_type   ::Interpolations.InterpolationType,
+        itp_bc     ::Interpolations.BoundaryCondition,
+        ) 
+        num_components = 1
+        itp = Array{AbstractInterpolation}(undef, num_components)
+        itp[1] = interpolate(axes, tensorfield[:,:,:], itp_type)
+        itp[1] = extrapolate(itp[1], itp_bc)
+        new(itp)
+    end
+    function tensor_interpolate(
+        axes       ::Tuple{Vector{<:Real}, Vector{<:Real}, Vector{<:Real}},
+        tensorfield::Array{<:Real, 4},
+        itp_type   ::Interpolations.InterpolationType,
+        itp_bc     ::Interpolations.BoundaryCondition,
+        ) 
+        num_components, _, _, _ = size(tensorfield)
+        itp = Array{AbstractInterpolation}(undef, num_components)
+        for i = 1:num_components
+            itp[i] = interpolate(axes, tensorfield[i,:,:,:], itp_type)
+            itp[i] = extrapolate(itp[i], itp_bc)
+        end 
+        new(itp)
+    end
+    function tensor_interpolate(
+        axes       ::Tuple{Vector{<:Real}, Vector{<:Real}, Vector{<:Real}},
+        tensorfield::Array{<:Real, 5},
+        itp_type   ::Interpolations.InterpolationType,
+        itp_bc     ::Interpolations.BoundaryCondition,
+        ) 
+        num_components_m, num_components_n, _, _, _ = size(tensorfield)
+        itp = Array{AbstractInterpolation}(undef, num_components_m, num_components_n)
+        for n = 1:num_components_n
+            for m = 1:num_components_m
+                itp[m,n] = interpolate(axes, tensorfield[m,n,:,:,:], itp_type)
+                itp[m,n] = extrapolate(itp[m,n], itp_bc)
+            end
+        end 
+        new(itp)
+    end
+end
+function (itp::tensor_interpolate)(x,y,z)
+    field = Array{typeof(x)}(undef, size(itp.itp)...)
+    for i = eachindex(itp.itp)
+        field[i] = itp.itp[i](x, y, z)
+    end
+    return field
 end
 
 function EMfield_itps(
@@ -40,9 +61,9 @@ function EMfield_itps(
     itp_type = Gridded(Linear())
     itp_bc = Flat()
     axes = (mesh.x, mesh.y, mesh.z)
-    B_itp = tensor_interpolate(axes, B, itp_type, itp_bc)
-    E_itp = tensor_interpolate(axes, E, itp_type, itp_bc)
-    return B_itp, E_itp
+    Bitp = tensor_interpolate(axes, B, itp_type, itp_bc)
+    Eitp = tensor_interpolate(axes, E, itp_type, itp_bc)
+    return Bitp, Eitp
 end
 function EMfield_itps(
     mesh   ::AbstractMesh,
