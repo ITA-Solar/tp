@@ -116,13 +116,13 @@ struct GCAPitchAngleScatteringParams{qType} <: AbstractProblemParameters
     q      ::qType
     m      ::qType
     lnΛ    ::qType
-    B      ::Vector{AbstractInterpolation}
-    E      ::Vector{AbstractInterpolation}
-    gradB  ::Vector{AbstractInterpolation}
-    gradb  ::Matrix{AbstractInterpolation}
-    gradExB::Matrix{AbstractInterpolation}
-    n      ::AbstractProblemParameters
-    T      ::AbstractProblemParameters
+    B      ::Any
+    E      ::Any
+    gradB  ::Any
+    gradb  ::Any
+    gradExB::Any
+    n      ::Any
+    T      ::Any
 
     function GCAPitchAngleScatteringParams(
         q      ::Any,
@@ -142,10 +142,44 @@ struct GCAPitchAngleScatteringParams{qType} <: AbstractProblemParameters
             EMfield_itps(mesh, B, E, gradB, gradb, gradExB, n, T)...
             )
     end
+    function GCAPitchAngleScatteringParams(
+        q      ::Any,
+        m      ::Any,
+        lnΛ    ::Any,
+        B      ::Function,
+        E      ::Function,
+        gradB  ::Function,
+        gradb  ::Function,
+        gradExB::Function,
+        n      ::Function,
+        T      ::Function,
+        )
+        new{typeof(q)}(
+            q, m, lnΛ, B, E, gradB, gradb, gradExB, n, T
+            )
+    end
+    function GCAPitchAngleScatteringParams(
+        q      ::Any,
+        m      ::Any,
+        lnΛ    ::Any,
+        B      ::tensor_interpolate,
+        E      ::tensor_interpolate,
+        gradB  ::tensor_interpolate,
+        gradb  ::tensor_interpolate,
+        gradExB::tensor_interpolate,
+        n      ::tensor_interpolate,
+        T      ::tensor_interpolate,
+        )
+        new{typeof(q)}(
+            q, m, lnΛ, B, E, gradB, gradb, gradExB, n, T
+            )
+    end
 end
 function (p::GCAPitchAngleScatteringParams{<:Real})(_::Int64=1)
-    return (p.q, p.m, p.lnΛ, p.B, p.E, p.gradB, p.gradb, p.gradExB)
+    return (p.q, p.m, p.lnΛ, p.B, p.E, p.gradB, p.gradb, p.gradExB, p.n, p.T)
 end
-function (p::GCAParams{Vector{<:Real}})(i::Int64=1)
-    return (p.q[i], p.m[i]. p.lnΛ[i], p.B, p.E, p.gradB, p.gradb, p.gradExB)
+function (p::GCAPitchAngleScatteringParams{Vector{<:Real}})(i::Int64=1)
+    return (p.q[i], p.m[i]. p.lnΛ[i], p.B, p.E, p.gradB, p.gradb, p.gradExB,
+        p.n, p.T
+        )
 end
