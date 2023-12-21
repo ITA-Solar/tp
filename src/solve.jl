@@ -15,14 +15,15 @@ function solve(
     solver   ::Function
     ;
     dW=nothing,
-    callback=nothing
+    callback=nothing,
+    seed=0,
     )
     t = collect(tspan[1]:dt:tspan[2])
     nsteps = convert(Int64, (tspan[2] - tspan[1])/dt)
     nvar = length(particles.ic())
     u = Array{Float64}(undef, nsteps+1, nvar, particles.npart)
     if dW === nothing
-        dW = randn(nsteps+1, particles.npart)*√dt
+        dW = randn(MersenneTwister(seed), nsteps+1, particles.npart)*√dt
     end
     if callback === nothing
     # Add solve without callbacks if not needed
