@@ -400,6 +400,23 @@ function get_fields(params::Parameters)
     end
 end
 
+function EMfield_at_pos(
+    pos::Matrix{<:Real},
+    Bfield::Array{<:Real, 4},
+    Efield::Array{<:Real, 4},
+    pmesh ::PureMesh
+    )
+    npart = size(pos)[2]
+    Bitp, Eitp = EMfield_itps(pmesh, Bfield, Efield)
+    B_at_pos = Array{Float64}(undef, 3, npart)
+    E_at_pos = Array{Float64}(undef, 3, npart)
+    for i = 1:npart
+        x,y,z = pos[:,i]
+        B_at_pos[:,i] = Bitp(x,y,z)
+        E_at_pos[:,i] = Eitp(x,y,z)
+    end     
+    return B_at_pos, E_at_pos
+end
 
 function get_GCA_IC(
     params::Parameters,
@@ -409,18 +426,7 @@ function get_GCA_IC(
     Efield::Array{<:Real, 4},
     pmesh ::PureMesh
     )
-    B_itp, E_itp = EMfield_itps(pmesh, Bfield, Efield)
-    B_at_pos = Array{Float64}(undef, 3, params.npart)
-    E_at_pos = Array{Float64}(undef, 3, params.npart)
-    @time for i = 1:params.npart
-        x,y,z = pos[:,i]
-        B_at_pos[:,i] = [ B_itp[1](x,y,z),
-                      B_itp[2](x,y,z),
-                      B_itp[3](x,y,z) ]
-        E_at_pos[:,i] = [ E_itp[1](x,y,z),
-                      E_itp[2](x,y,z),
-                      E_itp[3](x,y,z) ]
-    end     
+    B_at_pos, E_at_pos = EMfield_at_pos(pos, Bfield, Efield, pmesh)    
     R, vparal, mu = calc_GCA_IC_and_mu(
         pos, 
         vel, 
@@ -614,7 +620,7 @@ end
 function tp_createmesh!(
     params::Parameters
     )
-    #---------------------------------------------------------------------------
+    #--------------------------------------------------------------------------
     # Construct mesh
     if params.bg_input == "br"
         mesh = Mesh(params.br_expname, params.br_expdir, params.br_isnap;
