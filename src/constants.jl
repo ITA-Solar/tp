@@ -29,10 +29,21 @@ m_e_cgs = 9.10938370e-28 # g
 
 # Unit conversion
 cgs2SI_t = 1e0  # s * 1 s/s ..........................cgs-seconds to SI
-cgs2SI_u = 1e-2 # cm/s * 1e-2 m/cm = m/s....cgs-velocity to SI-velocity
-cgs2SI_b = 1e-4 # G * 1e-4 T/G = T.............cgs-magnetic field to SI
-cgs2SI_l = 1e-2 # cm * 1e-2 m/cm = m............cgs-length to SI-length
+cgs2SI_tg = 1e0 # K * 1 K/K ................................temperature
+cgs2SI_u = 1e-2 # cm/s * 1e-2 m/cm = m/s.......................velocity
+cgs2SI_b = 1e-4 # G * 1e-4 T/G = T.......................magnetic field
+cgs2SI_l = 1e-2 # cm * 1e-2 m/cm = m.............................length
 cgs2SI_e = 1e-6 # g cm s^-2 Fr^-1 * 1e-3 kg/g * 1e-2 m/cm * 1e-1 Fr/C
-                # = kg m /s^2/C................cgs-electric field to SI
+                # = kg m /s^2/C..........................electric field
+cgs2SI_r = 1e3  # g/cm^3 * 1e-3 kg/g * 1e6 cm^3/m^3 = kg/m^3 ...density
+
+# Unit conversions from Bifrost code units
+code2cgs_t = 1e2 #.........................100s....................time
+code2cgs_l = 1e8 #.........................1Mm...................length
+code2SI_t = code2cgs_t*cgs2SI_t
+code2SI_l = code2cgs_l*cgs2SI_l
+
+# Other convertion factors
+density2numberdensity_MHD = 1/(m_e + m_p)
 
 
