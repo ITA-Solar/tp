@@ -52,7 +52,7 @@ end
 struct FloatIC{RealT<:Real} <: AbstractVariableIC
     float::RealT
 end
-function (ic::FloatIC)(i::Integer=1)
+function (ic::FloatIC)(_::Integer=1)
     return ic.float
 end
 
