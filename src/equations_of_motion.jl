@@ -471,9 +471,9 @@ function (eom::OrnsteinUhlenbeckDiffusion)(_, p, _)
     return [dXdW, dVdW]
 end
 
-struct GCA_pitchAngleFriction
+struct GCAPitchAngleFriction
 end
-function (eom::GCA_pitchAngleFriction)(du, u, p, _)
+function (eom::GCAPitchAngleFriction)(u, p, _)
     R = u[1:3]    # Position of the gyrocentre
     vparal = u[4] # Particle velocity parallel to the magnetic field
     beta = u[5]   # Cosine of pitch angle
@@ -481,7 +481,7 @@ function (eom::GCA_pitchAngleFriction)(du, u, p, _)
     # Extract parameters:
     #
     # Particle charge and particle mass and the Coulomb logarithm
-    q, m, coulomb_logarithm = p[1:3]
+    q, m, kf = p[1:3]
     # interpolation objects of
     # the magnetic vector field, the electric vector field, the magnetic
     # gradient vector field, the gradient of the magnetic direction
@@ -492,19 +492,11 @@ function (eom::GCA_pitchAngleFriction)(du, u, p, _)
 
     # Use the gyrocentre position interpolate the vectors, matrices and
     # scalars from the interpolation objects.
-    B_vec = [B_itp[1](R...), B_itp[2](R...), B_itp[3](R...)]
-    E_vec = [E_itp[1](R...), E_itp[2](R...), E_itp[3](R...)]
-    gradB_vec = [ gradB_itp[1](R...), gradB_itp[2](R...), gradB_itp[3](R...) ]
-    gradb = [
-        gradb_itp[1,1](R...) gradb_itp[1,2](R...) gradb_itp[1,3](R...)
-        gradb_itp[2,1](R...) gradb_itp[2,2](R...) gradb_itp[2,3](R...)
-        gradb_itp[3,1](R...) gradb_itp[3,2](R...) gradb_itp[3,3](R...)
-        ]
-    gradExB = [
-        gradExB_itp[1,1](R...) gradExB_itp[1,2](R...) gradExB_itp[1,3](R...)
-        gradExB_itp[2,1](R...) gradExB_itp[2,2](R...) gradExB_itp[2,3](R...)
-        gradExB_itp[3,1](R...) gradExB_itp[3,2](R...) gradExB_itp[3,3](R...)
-        ]
+    B_vec = B_itp(R...)
+    E_vec = E_itp(R...)
+    gradB_vec = gradB_itp(R...)
+    gradb = gradb_itp(R...)
+    gradExB = gradExB_itp(R...)
     n = n_itp(R...)
     T = T_itp(R...)
 
@@ -523,7 +515,7 @@ function (eom::GCA_pitchAngleFriction)(du, u, p, _)
     # Material derivatives of the magnetic field strength, the magnetic field
     # direction, and the ExB-drift. Assumes ∂/∂t = 0
     # See Ripperda et al. (2018) and notes.
-    dBdt = vparal * gradb ⋅ gradB_vec + ExBdrift ⋅ gradB_vec
+    dBdt = vparal * b_vec ⋅ gradB_vec + ExBdrift ⋅ gradB_vec
     dbdt = vparal * (gradb * b_vec) + gradb*ExBdrift
     dExBdt = vparal * (gradExB * b_vec) + gradExB*ExBdrift
 
@@ -543,24 +535,25 @@ function (eom::GCA_pitchAngleFriction)(du, u, p, _)
     dbetadt = (1/vparal*dvparaldt - 1/2B*dBdt)*beta*(1-beta^2)
 
     # Compute the electron collision frequency
-    eta = 2.91e-6 * n * coulomb_logarithm * T^(-1.5)
+    coulomb_logarithm = 0.0
+    eta = kf*2.91 * n[1] * coulomb_logarithm * T[1]^(-1.5)
     beta_friction = -eta*beta
 
 
     # Update the statevector
-    du .= [dRdt; dvparaldt; dbetadt + beta_friction]
+    return [dRdt; dvparaldt; dbetadt + beta_friction] 
 
 end
 
-struct GCA_pitchAngleDiffusion
+struct GCAPitchAngleDiffusion
 end
-function (eom::GCA_pitchAngleDiffusion)(du, u, params, _)
+function (eom::GCAPitchAngleDiffusion)(u, params, _)
     R = u[1:3]    # Position of the gyrocentre
     beta = u[5]   # Cosine of pitch angle
 
     # Extract parameters
     # coulomb logarithm
-    coulomb_logarithm = params[3]
+    kd = params[3]
     # number density and temperature interpolation objects
     n_itp, T_itp = params[9:10]
     # Interpolate density to guiding centre location
@@ -568,12 +561,13 @@ function (eom::GCA_pitchAngleDiffusion)(du, u, params, _)
     T = T_itp(R...)
 
     # Compute the electron collision frequency
-    eta = 2.91e-6 * n * coulomb_logarithm * T^(-1.5)
+    coulomb_logarithm = 20
+    eta = kd * 2.91 * n[1] * coulomb_logarithm * T[1]^(-1.5)
 
     # Compute the diffusion coefficients
     dRdW = [0,0,0]
     dvparaldW = 0
     dbetadW = √(eta*(1-beta^2))
 
-    du .= [dRdW; dvparaldW; dbetadW]
+    return [dRdW; dvparaldW; dbetadW]
 end
