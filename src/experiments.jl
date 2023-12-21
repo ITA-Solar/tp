@@ -482,6 +482,11 @@ end
 
 function get_fields_from_br(
     params::Parameters
+    ;
+    get_bfield  ::Bool=true, 
+    get_efield  ::Bool=true,
+    get_density ::Bool=false,
+    get_gas_temp::Bool=false,
     )
     wfp = params.wp_snap
     ndims = 3
@@ -501,28 +506,48 @@ function get_fields_from_br(
     println("           Loading auxiliares from $(basename(aux_filename))")
     br_aux = br_load_auxdata(aux_filename, br_params)
 
-    # Magnetic field
-    println("           Getting magnetic field from index...")
-    bx_code = br_snap[:,:,:,6]
-    by_code = br_snap[:,:,:,7]
-    bz_code = br_snap[:,:,:,8]
-    # Electric field
-    auxes = split(br_params["aux"])
-    ex_idx = findall(x -> x == "ex", auxes)
-    ey_idx = findall(x -> x == "ey", auxes)
-    ez_idx = findall(x -> x == "ez", auxes)
-    e_idxs = [length(ex_idx), length(ey_idx), length(ez_idx)]
-    if any(i -> i == 0, e_idxs)
-        error("Did not find all electric field components in aux-file")
-    end
-    println("           Getting electric field from index...")
-    ex_code = br_aux[:,:,:,ex_idx...]
-    ey_code = br_aux[:,:,:,ey_idx...]
-    ez_code = br_aux[:,:,:,ez_idx...]
-
     pbc_x = Bool(br_params["periodic_x"])
     pbc_y = Bool(br_params["periodic_y"])
     pbc_z = Bool(br_params["periodic_z"])
+    auxes = split(br_params["aux"])
+
+    # Check which fields to get. This is not the best way to do it, because 
+    # the amount of variables to return and which ones are unknown
+    # What I should do is use br_load_snapvariable and have 1 function per
+            # variable. Loading the parameters and mesh does not take 
+            # that much time and you don't have to load all variables into
+            # memory.
+    if get_bfield
+        # Magnetic field
+        println("           Getting magnetic field from index...")
+        bx_code = br_snap[:,:,:,6]
+        by_code = br_snap[:,:,:,7]
+        bz_code = br_snap[:,:,:,8]
+    end
+    if get_efield
+        # Electric field
+        ex_idx = findall(x -> x == "ex", auxes)
+        ey_idx = findall(x -> x == "ey", auxes)
+        ez_idx = findall(x -> x == "ez", auxes)
+        e_idxs = [length(ex_idx), length(ey_idx), length(ez_idx)]
+        if any(i -> i == 0, e_idxs)
+            error("Did not find all electric field components in aux-file")
+        end
+        println("           Getting electric field from index...")
+        ex_code = br_aux[:,:,:,ex_idx...]
+        ey_code = br_aux[:,:,:,ey_idx...]
+        ez_code = br_aux[:,:,:,ez_idx...]
+    end
+    if get_density
+        println("           Getting density from index...")
+        r_code = br_snap[:,:,:,1]
+    end
+    if get_gas_temp
+        println("           Getting temperature from index...")
+        tg_idx = findall(x -> x == "tg", auxes)
+        tg_code = br_aux[:,:,:,tg_idx...]
+    end
+
 
     #-----------------------------------------------------------------------
     # Destagger and scale variables to SI-units
@@ -540,41 +565,57 @@ function get_fields_from_br(
     code2cgs_b = wfp(br_params["u_B"])
     code2cgs_l = wfp(br_params["u_l"])
     code2cgs_e = code2cgs_u * code2cgs_b
+    code2cgs_r = wfp(br_params["u_r"])
 
-    # De-stagger and scale magnetic field
-    println("           De-staggering: bx")
-    bx = br_xup(bx_code, pbc_x)
-    println("                          by")
-    by = br_yup(by_code, pbc_y)
-    println("                          bz")
-    bz = br_zup(bz_code, pbc_z)
-    println("                          ex")
-    ex = br_yup(br_zup(ex_code, pbc_z), pbc_y)
-    println("                          ey")
-    ey = br_zup(br_xup(ey_code, pbc_x), pbc_z)
-    println("                          ez")
-    ez = br_xup(br_yup(ez_code, pbc_y), pbc_x)
-
-
-    println("            Scaling to CGS-units")
-    bx *= code2cgs_b 
-    by *= code2cgs_b 
-    bz *= code2cgs_b 
-    ex *= code2cgs_e 
-    ey *= code2cgs_e 
-    ez *= code2cgs_e 
+    if get_bfield
+        # De-stagger and scale magnetic field
+        println("           De-staggering: bx")
+        bx = br_xup(bx_code, pbc_x)
+        println("                          by")
+        by = br_yup(by_code, pbc_y)
+        println("                          bz")
+        bz = br_zup(bz_code, pbc_z)
+        bx *= code2cgs_b 
+        by *= code2cgs_b 
+        bz *= code2cgs_b 
+        if params.SI_units
+            bx *= wfp(cgs2SI_b)
+            by *= wfp(cgs2SI_b)
+            bz *= wfp(cgs2SI_b)
+        end
+    end
+    if get_efield
+        # De-stagger and scale electric field
+        println("                          ex")
+        ex = br_yup(br_zup(ex_code, pbc_z), pbc_y)
+        println("                          ey")
+        ey = br_zup(br_xup(ey_code, pbc_x), pbc_z)
+        println("                          ez")
+        ez = br_xup(br_yup(ez_code, pbc_y), pbc_x)
+        ex *= code2cgs_e 
+        ey *= code2cgs_e 
+        ez *= code2cgs_e 
+        if params.SI_units
+            ex *= wfp(cgs2SI_e)
+            ey *= wfp(cgs2SI_e)
+            ez *= wfp(cgs2SI_e)
+        end
+    end
+    if get_density
+        r = r_code*code2cgs_r
+        if params.SI_units
+            r *= wfp(cgs2SI_r)
+        end
+    end
+    if get_gas_temp
+        # Nothing to be done here
+    end
 
     # Scale to SI-units
     if params.SI_units
-        println("            Scaling to SI-units")
-        bx *= wfp(cgs2SI_b)
-        by *= wfp(cgs2SI_b)
-        bz *= wfp(cgs2SI_b)
-        ex *= wfp(cgs2SI_e)
-        ey *= wfp(cgs2SI_e)
-        ez *= wfp(cgs2SI_e)
+        println("            ** SCALING TO SI **")
     else
-        println("            ** NOT SCALING TO SI **")
+        println("            ** SCALING TO CGS **")
     end
 
     # Reshape to form necessary for tp (currently)
@@ -589,30 +630,67 @@ function get_fields_from_br(
         meshsize[constant_dim_idx] = 2
     end 
     println("           Allocating arrays for reshaping...")
-    bfield  = Array{wfp}(undef, ndims, meshsize...)
-    efield  = Array{wfp}(undef, ndims, meshsize...)
+    if get_bfield
+        bfield  = Array{wfp}(undef, ndims, meshsize...)
+    end
+    if get_efield
+        efield  = Array{wfp}(undef, ndims, meshsize...)
+    end
+    if get_density
+        density = Array{wfp}(undef, meshsize...)
+    end
+    if get_gas_temp
+        gas_temp = Array{wfp}(undef, meshsize...)
+    end
     println("           Reshaping...")
     if constant_dim_idx == 2
         println("               Bifrost simulation is 2D in the XZ-plane.")
         for i = 1:2
-            bfield[1,:,i,:] = bx
-            bfield[2,:,i,:] = by
-            bfield[3,:,i,:] = bz
-            efield[1,:,i,:] = ex
-            efield[2,:,i,:] = ey
-            efield[3,:,i,:] = ez
+            if get_bfield
+                bfield[1,:,i,:] = bx
+                bfield[2,:,i,:] = by
+                bfield[3,:,i,:] = bz
+            end
+            if get_efield
+                efield[1,:,i,:] = ex
+                efield[2,:,i,:] = ey
+                efield[3,:,i,:] = ez
+            end
+            if get_density
+                density[:,i,:] = r
+            end
+            if get_gas_temp
+                gas_temp[:,i,:] = tg_code
+            end
         end
     elseif constant_dim_idx == 1 && constant_dim_idx == 3
         error("2D Bifrost simualtions in XY and YZ planes not yet supported")
     else
-        bfield[1,:,:,:] = bx
-        bfield[2,:,:,:] = by
-        bfield[3,:,:,:] = bz
-        efield[1,:,:,:] = ex
-        efield[2,:,:,:] = ey
-        efield[3,:,:,:] = ez
+        if get_bfield
+            bfield[1,:,:,:] = bx
+            bfield[2,:,:,:] = by
+            bfield[3,:,:,:] = bz
+        end
+        if get_efield
+            efield[1,:,:,:] = ex
+            efield[2,:,:,:] = ey
+            efield[3,:,:,:] = ez
+        end
+        if get_density
+            density = r
+        end
+        if get_gas_temp
+            gas_temp = tg_code
+        end
     end
-    return bfield, efield
+    
+    # Temporary solution. All permutations not possible.
+    # See comment above.
+    if get_density
+        return bfield, efield, density, gas_temp
+    else
+        return bfield, efield
+    end
 end
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~)~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
