@@ -418,6 +418,16 @@ function EMfield_at_pos(
     return B_at_pos, E_at_pos
 end
 
+function pitchangle(
+    m::Real,
+    B_at_pos::Matrix{<:Real},
+    vparal  ::Vector{<:Real},
+    mu      ::Vector{<:Real},
+    )
+    B = norm2(B_at_pos)
+    @. return sqrt(1/(2B*mu/(m*vparal^2) + 1))
+end
+
 function get_GCA_IC(
     params::Parameters,
     pos::Matrix{<:Real},
@@ -1070,6 +1080,18 @@ function getu0(
     end
     return u0
 end
+
+function getu0(
+    u::Array{<:Real, 3},
+    )
+    return u[1,:,:]
+end
+function getuf(
+    u::Array{<:Real, 3},
+    )
+    return u[end,:,:]
+end
+
    
 function getuf(
     u   ::Vector{<:ODESolution},
@@ -1104,6 +1126,24 @@ function getenergy(
     
     return E_k
 end 
+function getenergy(
+    mass ::Any,
+    u    ::Matrix{<:Real}=getu0(u),
+    )
+    vparal = u[4,:]
+    vperp = vparal .^ 2 .* (1 ./ u[5,:] .^2 .- 1)
+
+    nparts = length(vparal)
+    RealT = typeof(vparal[1])
+    v2 = Array{RealT}(undef, nparts)
+    E_k = Array{RealT}(undef, nparts)
+    
+    @. v2 = vparal^2 + vperp^2
+    @. E_k = 0.5*mass*v2
+    
+    return E_k
+end 
+
 
 function getvperp(
     R     ::Matrix{<:Real},
@@ -1157,6 +1197,39 @@ function tp_save_fast(
     write(file, uf)
     write(file, Ek0)
     write(file, Ekf)
+    close(file)
+    println("tp.jl: Wrote $tp_filename")
+end
+
+function save_fast_PAS(
+    u::AbstractArray,
+    params::Parameters
+    ;
+    expname=nothing,
+    expdir=nothing,
+    )
+    basename = get_basename(params; expname=expname, expdir=expdir)
+    tp_filename = string(basename, ".tp")
+    u0 = getu0(u)
+    uf = getuf(u)
+    Ek0 = getenergy(
+        params.mass,
+        u0
+    )
+    Ekf = getenergy(
+        params.mass,
+        uf
+    )
+    # Avoid nan-values
+    notnan = findall(x-> !isnan(x), Ekf)
+    ndof, npart = size(u0)[1], length(notnan)
+    file = open(tp_filename, "w+")
+    write(file, ndof)
+    write(file, npart)
+    write(file, u0[:,notnan])
+    write(file, uf[:,notnan])
+    write(file, Ek0[notnan])
+    write(file, Ekf[notnan])
     close(file)
     println("tp.jl: Wrote $tp_filename")
 end
