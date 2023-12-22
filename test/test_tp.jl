@@ -33,6 +33,7 @@ function test_tp_save_and_tp_load(verbose::Bool)
     	exp2 = tp_load(params)
 
 	# Delete test output-files
+	rm("$(params.tp_expdir)/$(params.tp_expname)_params.jl")
 	rm("$(params.tp_expdir)/$(params.tp_expname).tp")
 	rm("$(params.tp_expdir)/$(params.tp_expname).mesh")
 	rm("$(params.tp_expdir)/$(params.tp_expname).bg")
