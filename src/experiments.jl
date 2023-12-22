@@ -166,7 +166,7 @@ mutable struct Parameters
         bg_input::String="br"
         ) 
         #
-        println("tp.jl: Constructing Parameters...")
+        #println("tp.jl: Constructing Parameters...")
         #
         #  Create parameter instance with all parameters undefined
         params = new()
@@ -295,26 +295,26 @@ function DE_init!(
     checkrequirements(params)
 
 
-    println("tp.jl: Initialising experiment...")
+    #println("tp.jl: Initialising experiment...")
 
     #---------------------------------------------------------------------------
     # Get mesh, fields, initial conditions and problem parameters from the 
     # experiment parameters
     mesh = create_puremesh(params)
     bfield, efield = get_fields(params) 
-    println("tp.jl: Drawing initial posistions and velocities...")
+    #println("tp.jl: Drawing initial posistions and velocities...")
     pos, vel = tp_get_initial_pos_and_vel!(params, mesh)
     if usingGCA(params)
-        println("tp.jl: Getting GCA initial conditions...")
+        #println("tp.jl: Getting GCA initial conditions...")
         ICs, mu = get_GCA_IC(params, pos, vel, bfield, efield, mesh)
-        println("tp.jl: Computing field-gradients...")
+        #println("tp.jl: Computing field-gradients...")
         gradB, gradb, gradExB = compute_gradients(
                                     bfield, 
                                     efield,
                                     mesh.x, mesh.y, mesh.z,
                                     derivateUpwind
                                     )
-        println("tp.jl: Getting GCA problem parameters...")
+        #println("tp.jl: Getting GCA problem parameters...")
         prob_params = GCAParams(
             params.charge,
             params.mass,
@@ -327,9 +327,9 @@ function DE_init!(
             gradExB
         )
     else
-        println("tp.jl: Getting FO initial conditions...")
+        #println("tp.jl: Getting FO initial conditions...")
         ICs = get_FO_IC(pos, vel) 
-        println("tp.jl: Getting FO problem parameters...")
+        #println("tp.jl: Getting FO problem parameters...")
         prob_params = FOParams(params.charge, params.mass, mesh, bfield, efield)
     end
 
@@ -344,7 +344,7 @@ function DE_init!(
                         )
     patch = DEPatch(params.tspan, particle, mesh)
     exp = Experiment(params, patch)
-    println("tp.jl: Initialisation of DE-experiment completed.")
+    #println("tp.jl: Initialisation of DE-experiment completed.")
     return exp
 end
 
@@ -357,7 +357,7 @@ function tp_init!(
     checkrequirements(params)
 
 
-    println("tp.jl: Initialising experiment...")
+    #println("tp.jl: Initialising experiment...")
 
     #---------------------------------------------------------------------------
     # Construct Experiment
@@ -471,7 +471,7 @@ end
 function get_mesh_from_br(
     params::Parameters
     )    
-    println("tp.jl: Reading Bifrost mesh...")
+    #println("tp.jl: Reading Bifrost mesh...")
     basename = string(
         params.br_expdir, "/", params.br_expname
         )
@@ -508,12 +508,12 @@ function get_fields_from_br(
     snap_filename = string(file_basename, "_", params.br_isnap, ".snap")
     aux_filename = string(file_basename, "_", params.br_isnap, ".aux")
 
-    println("tp.jl: Reading Bifrost fields...")
-    println("           Reading parameters from $(basename(idl_filename))")
+    #println("tp.jl: Reading Bifrost fields...")
+    #println("           Reading parameters from $(basename(idl_filename))")
     br_params = br_read_params(idl_filename)
-    println("           Loading snap       from $(basename(snap_filename))")
+    #println("           Loading snap       from $(basename(snap_filename))")
     br_snap = br_load_snapdata(snap_filename, br_params)
-    println("           Loading auxiliares from $(basename(aux_filename))")
+    #println("           Loading auxiliares from $(basename(aux_filename))")
     br_aux = br_load_auxdata(aux_filename, br_params)
 
     pbc_x = Bool(br_params["periodic_x"])
@@ -529,7 +529,7 @@ function get_fields_from_br(
             # memory.
     if get_bfield
         # Magnetic field
-        println("           Getting magnetic field from index...")
+        #println("           Getting magnetic field from index...")
         bx_code = br_snap[:,:,:,6]
         by_code = br_snap[:,:,:,7]
         bz_code = br_snap[:,:,:,8]
@@ -543,17 +543,17 @@ function get_fields_from_br(
         if any(i -> i == 0, e_idxs)
             error("Did not find all electric field components in aux-file")
         end
-        println("           Getting electric field from index...")
+        #println("           Getting electric field from index...")
         ex_code = br_aux[:,:,:,ex_idx...]
         ey_code = br_aux[:,:,:,ey_idx...]
         ez_code = br_aux[:,:,:,ez_idx...]
     end
     if get_density
-        println("           Getting density from index...")
+        #println("           Getting density from index...")
         r_code = br_snap[:,:,:,1]
     end
     if get_gas_temp
-        println("           Getting temperature from index...")
+        #println("           Getting temperature from index...")
         tg_idx = findall(x -> x == "tg", auxes)
         tg_code = br_aux[:,:,:,tg_idx...]
     end
@@ -579,11 +579,11 @@ function get_fields_from_br(
 
     if get_bfield
         # De-stagger and scale magnetic field
-        println("           De-staggering: bx")
+        #println("           De-staggering: bx")
         bx = br_xup(bx_code, pbc_x)
-        println("                          by")
+        #println("                          by")
         by = br_yup(by_code, pbc_y)
-        println("                          bz")
+        #println("                          bz")
         bz = br_zup(bz_code, pbc_z)
         bx *= code2cgs_b 
         by *= code2cgs_b 
@@ -596,11 +596,11 @@ function get_fields_from_br(
     end
     if get_efield
         # De-stagger and scale electric field
-        println("                          ex")
+        #println("                          ex")
         ex = br_yup(br_zup(ex_code, pbc_z), pbc_y)
-        println("                          ey")
+        #println("                          ey")
         ey = br_zup(br_xup(ey_code, pbc_x), pbc_z)
-        println("                          ez")
+        #println("                          ez")
         ez = br_xup(br_yup(ez_code, pbc_y), pbc_x)
         ex *= code2cgs_e 
         ey *= code2cgs_e 
@@ -623,9 +623,9 @@ function get_fields_from_br(
 
     # Scale to SI-units
     if params.SI_units
-        println("            ** SCALING TO SI **")
+        #println("            ** SCALING TO SI **")
     else
-        println("            ** SCALING TO CGS **")
+        #println("            ** SCALING TO CGS **")
     end
 
     # Reshape to form necessary for tp (currently)
@@ -639,7 +639,7 @@ function get_fields_from_br(
         constant_dim_idx = idxs[1]
         meshsize[constant_dim_idx] = 2
     end 
-    println("           Allocating arrays for reshaping...")
+    #println("           Allocating arrays for reshaping...")
     if get_bfield
         bfield  = Array{wfp}(undef, ndims, meshsize...)
     end
@@ -652,9 +652,9 @@ function get_fields_from_br(
     if get_gas_temp
         gas_temp = Array{wfp}(undef, meshsize...)
     end
-    println("           Reshaping...")
+    #println("           Reshaping...")
     if constant_dim_idx == 2
-        println("               Bifrost simulation is 2D in the XZ-plane.")
+        #println("               Bifrost simulation is 2D in the XZ-plane.")
         for i = 1:2
             if get_bfield
                 bfield[1,:,i,:] = bx
@@ -797,7 +797,7 @@ function tp_get_initial_pos_and_vel!(
                                                    ),
                                dims=numdims + 1
                                )
-            println("           Finding temperatures at initial positions")
+            #println("           Finding temperatures at initial positions")
             @time for i = 1:params.npart
                 # Interpolate the temperature at the position of the particle
                 x = pos[:,i]
@@ -986,7 +986,7 @@ function tp_save(
     )
 
     basename = get_basename(exp.params; expname=expname, expdir=expdir)
-    println("tp.jl: Saving experiment...")
+    #println("tp.jl: Saving experiment...")
     #
     # Construct filenames
     #
@@ -1043,7 +1043,7 @@ function tp_save(
             write(file, "t$i", sol.u[i].t)
         end
     end
-    println("tp.jl: Wrote $tp_filename")
+    #println("tp.jl: Wrote $tp_filename")
 end
 
 function tp_save(
@@ -1064,7 +1064,7 @@ function tp_save(
             write(file, "t$i", u[i].t)
         end
     end
-    println("tp.jl: Wrote $tp_filename")
+    #println("tp.jl: Wrote $tp_filename")
 end
 
 #-----------------------------------------------------
@@ -1198,7 +1198,7 @@ function tp_save_fast(
     write(file, Ek0)
     write(file, Ekf)
     close(file)
-    println("tp.jl: Wrote $tp_filename")
+    #println("tp.jl: Wrote $tp_filename")
 end
 
 function save_fast_PAS(
@@ -1231,7 +1231,7 @@ function save_fast_PAS(
     write(file, Ek0[notnan])
     write(file, Ekf[notnan])
     close(file)
-    println("tp.jl: Wrote $tp_filename")
+    #println("tp.jl: Wrote $tp_filename")
 end
 
 #-----------------------------------------------------
@@ -1261,7 +1261,7 @@ function tp_saveparams(
     write(f, paramsstring)
     close(f)
     #
-    println("tp.jl: Wrote $(filename)")
+    #println("tp.jl: Wrote $(filename)")
 end
 
 function tp_savetp(
@@ -1277,7 +1277,7 @@ function tp_savetp(
         write(f, exp.patch.tp.vel)
     end
     close(f)
-    println("tp.jl: Wrote $filename")
+    #println("tp.jl: Wrote $filename")
 end # tp_savetp
 
 
@@ -1296,7 +1296,7 @@ function tp_savemesh(
         write(f, exp.patch.mesh.zCoords)
     end
     close(f)
-    println("tp.jl: Wrote $filename")
+    #println("tp.jl: Wrote $filename")
 end # function tp_savemesh
 
 
@@ -1311,7 +1311,7 @@ function tp_savebg(
     write(f, exp.patch.mesh.∇b̂)
     write(f, exp.patch.mesh.∇ExB)
     close(f)
-    println("tp.jl: Wrote $filename")
+    #println("tp.jl: Wrote $filename")
 end # function tp_savebg
 
 
@@ -1324,7 +1324,7 @@ function tp_load(
     bg_filename  =nothing,
     )
     #
-    println("tp.jl: Loading experiment from file:")
+    #println("tp.jl: Loading experiment from file:")
     # Parse filenames
     basename = string(expdir, "/", expname)
     tp_filename = string(basename, ".tp")
@@ -1388,7 +1388,7 @@ function tp_loadtp(
     numdims = 3
     pos = Array{params.wp_part}(undef, numdims, params.npart, params.nsteps+1)
     #
-    println("tp.jl: Loading particles...")
+    #println("tp.jl: Loading particles...")
     f = open(filename)
     if usingGCA(params)
         vel = Array{params.wp_part}(undef, params.npart, params.nsteps+1)
@@ -1433,7 +1433,7 @@ function tp_loadmesh(
     y = Vector{params.wp_snap}(undef, params.ny)
     z = Vector{params.wp_snap}(undef, params.nz)
     #
-    println("tp.jl: Loading mesh...")
+    #println("tp.jl: Loading mesh...")
     f = open(filename)
     read!(f, x)
     read!(f, y)
@@ -1455,7 +1455,7 @@ function tp_loadbg(
     ∇b̂ = zeros(params.wp_snap, 3, 3, meshsize...)
     ∇ExB = zeros(params.wp_snap, 3, 3, meshsize...)
     #
-    println("tp.jl: Loading fields...")
+    #println("tp.jl: Loading fields...")
     f = open(filename)
     read!(f, bField)
     read!(f, eField)
@@ -1532,7 +1532,7 @@ function tp_run!(
             "\ttspan: $(@sprintf("(%.2e, %.2e)", exp.params.tspan...))\n",
             )
     end
-    println(statement)
+    #println(statement)
     res = run!(exp.patch)
     return res
 end # function tp_run

@@ -39,7 +39,7 @@ end
 
 function get_prob_func(part::ODEParticle)
     return (prob, i, repeat) -> (
-                println("tp.jl: Solving particle $i");
+                #println("tp.jl: Solving particle $i");
                 remake(prob, u0=part.ic(i), p=part.p(i))
                 )
 end
@@ -446,7 +446,7 @@ function checkboundary!(
                 pos[k] = domain[k, 2] + (pos[k] - domain[k, 1])
             else
                 alive[j] = false # kill particle
-                println("Stp $time: Particle $j killed at lower $k boundary")
+                #println("Stp $time: Particle $j killed at lower $k boundary")
                 break
             end
         elseif pos[k] > domain[k, 2]
@@ -454,7 +454,7 @@ function checkboundary!(
                 pos[k] = domain[k, 1] + (pos[k] - domain[k, 2])
             else
                 alive[j] = false # kill particle
-                println("Step $time: Particle $j killed at upper $k boundary")
+                #println("Step $time: Particle $j killed at upper $k boundary")
                 break
             end # if particle alive
         end # if particle outside domain

@@ -396,11 +396,11 @@ function compute_gradients(bField ::Array{T, 4} where {T<:Real},
     dx = xCoords[2] - xCoords[1]
     dy = yCoords[2] - yCoords[1]
     dz = zCoords[2] - zCoords[1]
-    println("           Calculating magnetic field strength")
+    #println("           Calculating magnetic field strength")
     BB = norm4(bField)
     b̂ = zeros(wfp, 3, nx, ny, nz)
     ExBdrift = zeros(wfp, 3, nx, ny, nz)
-    println("           Calculating magnetic field unit-vector and ExB-drift")
+    #println("           Calculating magnetic field unit-vector and ExB-drift")
     for i = 1:nx
         for j= 1:ny
             for k = 1:nz
@@ -412,11 +412,11 @@ function compute_gradients(bField ::Array{T, 4} where {T<:Real},
             end
         end
     end
-    println("           Calculating gradients: B")
+    #println("           Calculating gradients: B")
     ∇B = ∇(BB, dx, dy, dz, derivate4thOrder) 
-    println("                                  b")
+    #println("                                  b")
     ∇b̂ = ∇(b̂,  dx, dy, dz, derivate4thOrder)
-    println("                                  ExB-drift")
+    #println("                                  ExB-drift")
     ∇ExBdrift= ∇(ExBdrift, dx, dy, dz, derivate4thOrder)
     return ∇B, ∇b̂, ∇ExBdrift
 end # function compute_gradients
@@ -431,11 +431,11 @@ function compute_gradients(
     )
     wfp = typeof(bField[1])
     _, nx, ny, nz = size(bField)
-    println("           Calculating magnetic field strength")
+    #println("           Calculating magnetic field strength")
     BB = norm4(bField)
     b̂ = zeros(wfp, 3, nx, ny, nz)
     ExBdrift = zeros(wfp, 3, nx, ny, nz)
-    println("           Calculating magnetic field unit-vector and ExB-drift")
+    #println("           Calculating magnetic field unit-vector and ExB-drift")
     for i = 1:nx
         for j= 1:ny
             for k = 1:nz
@@ -447,11 +447,11 @@ function compute_gradients(
             end
         end
     end
-    println("           Calculating gradients: B")
+    #println("           Calculating gradients: B")
     ∇B = ∇(BB, xCoords, yCoords, zCoords, scheme) 
-    println("                                  b")
+    #println("                                  b")
     ∇b̂ = ∇(b̂,  xCoords, yCoords, zCoords, scheme)
-    println("                                  ExB-drift")
+    #println("                                  ExB-drift")
     ∇ExBdrift= ∇(ExBdrift, xCoords, yCoords, zCoords, scheme)
     return ∇B, ∇b̂, ∇ExBdrift
 end # function compute∇s

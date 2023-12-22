@@ -38,7 +38,7 @@ function update(patch::DEPatch)
     prob = get_problem(patch.tp, patch.tspan)
 
     ## For distributed parallelisation
-    #println("Defining prob-function")
+    #println("Defining prob-function")pat
     #@everywhere function prob_func(prob, i, repeat)
     #    remake(prob, u0=patch.tp.ic(i), p=patch.tp.p(i))
     #end
@@ -169,7 +169,7 @@ function run!(patch::Patch)
     onepercentofsnap = ceil(Int64, patch.numSteps/100)
     for i = 1:patch.numSteps # Over timesteps
         if i%onepercentofsnap == 0
-            print("Stepping progress: $(i/onepercentofsnap)% \r")
+            #print("Stepping progress: $(i/onepercentofsnap)% \r")
             flush(stdout)
         end
         push!(patch.tp,
