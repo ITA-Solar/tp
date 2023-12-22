@@ -124,8 +124,8 @@ posp[3, :] .= z(times, z0p, vzp, ωp, Ez, Bz)
 # NUMERICAL SOLUTION 
 #-------------------------------------------------------------------------------
 # MESH CREATION
-B = zeros(wpFloat, numDims, 2, 2, 2)
-E = zeros(wpFloat, numDims, 2, 2, 2)
+B = zeros(Float64, numDims, 2, 2, 2)
+E = zeros(Float64, numDims, 2, 2, 2)
 B[3, :, :, :] .= Bz
 E[1, :, :, :] .= Ex
 E[2, :, :, :] .= Ey

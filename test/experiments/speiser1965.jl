@@ -32,7 +32,7 @@ dt = 0.2e-8        # Time step [s]                      |
 
 #...............................................
 # PARTICLE TYPE
-species = 2*ones(wpInt, numparticles) # Specifies the species of the particles 
+species = 2*ones(Int64, numparticles) # Specifies the species of the particles 
 mass = specieTable[species[1], 1]
 charge = specieTable[species[1], 2]
 
@@ -60,9 +60,9 @@ ni = (100, 100, 100)
 d = 1e-4 # Current sheet width
 b = 1e-2  # Characteristic field strength
 function speiserBfield(
-    x::wpFloat,
-    y::wpFloat,
-    z::wpFloat
+    x::Float64,
+    y::Float64,
+    z::Float64
     )
     return [η, -x/d, 0.0]*b
 end
@@ -89,7 +89,7 @@ pbc    = (true, true, true) # (x,y,z) Are mesh boundary conditions periodic?
 #-------------------------------------------------------------------------------
 # COMPUTING THE AXES, MAGNETIC FIELD AND ELECTRIC FIELD
 xx, yy, zz, dx, dy, dz = createaxes(xi0, xif, ni)
-Bfield = zeros(wpFloat, numdims, ni[1], ni[2], ni[3])
+Bfield = zeros(Float64, numdims, ni[1], ni[2], ni[3])
 Efield = zeros(size(Bfield))
 Efield[3, :,:,:] .= Ez
 discretise!(Bfield, xx, yy, zz, speiserBfield)
@@ -102,7 +102,7 @@ mesh = Mesh(Bfield, Efield, xx, yy, zz)
 #-------------------------------------------------------------------------------
 # SIMULATION DURATION
 #
-numsteps = trunc(wpInt, tf/dt)   # Number of timesteps in the simulation
+numsteps = trunc(Int64, tf/dt)   # Number of timesteps in the simulation
 #println("Number of time steps = $numsteps.")
 
 #-------------------------------------------------------------------------------

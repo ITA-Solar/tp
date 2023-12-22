@@ -10,13 +10,10 @@
 using tp
 using LinearAlgebra
 
-wpInt =  Int64
-wpFloat = Float64
-
 
 include("test_interpolations_tp.jl")
 include("test_schemes.jl")
-include("test_trace_particles.jl")
+include("test_tp.jl")
 include("test_solvers.jl") # This file declear global variables whcich can't
 # be overridden.
 

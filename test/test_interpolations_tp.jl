@@ -121,7 +121,7 @@ function testlocateCell(verbose)
         coords = collect(LinRange(0, 1, N))
         dx = 1/(N-1)
         point = 2/3
-        answer1 = ceil(wpInt, point/dx)
+        answer1 = ceil(Int64, point/dx)
         answer2 = 1
 	answer3 = 2
 	answer4 = 3

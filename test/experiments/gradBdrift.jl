@@ -33,7 +33,7 @@ tf = 10*1/1.7507  # End time of simulation [s]         |
 
 #...............................................
 # PARTICLE TYPE
-species = 4*ones(wpInt, numparticles) # Specifies the species of the particles 
+species = 4*ones(Int64, numparticles) # Specifies the species of the particles 
 
 #...............................................
 # INITIAL CONDITIONS
@@ -56,9 +56,9 @@ ni = (100, 100, 2)
 a = 10.0 # gradient in magnetic field
 B0 = 6.0 # Additional constant
 function gradBfield(
-    x::wpFloat,
-    y::wpFloat,
-    z::wpFloat
+    x::Float64,
+    y::Float64,
+    z::Float64
     )
     return [0.0, 0.0, a*y + B0]
 end
@@ -84,7 +84,7 @@ pbc    = (true, true, true) # (x,y,z) Are mesh boundary conditions periodic?
 #-------------------------------------------------------------------------------
 # COMPUTING THE AXES, MAGNETIC FIELD AND ELECTRIC FIELD
 xx, yy, zz, dx, dy, dz = createaxes(xi0, xif, ni)
-Bfield = zeros(wpFloat, numdims, ni[1], ni[2], ni[3])
+Bfield = zeros(Float64, numdims, ni[1], ni[2], ni[3])
 Efield = zeros(size(Bfield))
 Efield[1,:,:,:] .= Ex
 Efield[2,:,:,:] .= Ey
@@ -99,7 +99,7 @@ mesh = Mesh(Bfield, Efield, xx, yy, zz)
 #-------------------------------------------------------------------------------
 # SIMULATION DURATION
 #
-numsteps = trunc(wpInt, tf/dt)   # Number of timesteps in the simulation
+numsteps = trunc(Int64, tf/dt)   # Number of timesteps in the simulation
 #println("Number of time steps = $numsteps.")
 
 #-------------------------------------------------------------------------------

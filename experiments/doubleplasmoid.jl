@@ -12,7 +12,6 @@
 using LinearAlgebra
 
 # Import internal modules from tp/src
-using WorkingPrecision: wpFloat, wpInt
 using Constants:        k_B
 using Meshes:           Mesh
 using Patches:          Patch, run!
@@ -38,7 +37,7 @@ tf = 3.0          # End time of simulation [s]         |
 
 #...............................................
 # PARTICLE TYPE
-species = 4*ones(wpInt, numparticles) # Specifies the species of the particles 
+species = 4*ones(Int64, numparticles) # Specifies the species of the particles 
 
 #...............................................
 # INITIAL CONDITIONS
@@ -101,7 +100,7 @@ B = Schemes.curl(A, gridsizes, Schemes.derivateCentral)
 @. B = bamp*B + bconst
 @. B[3,:,:,:] = bz
 # Create the electric field
-E = zeros(wpFloat, size(B))
+E = zeros(Float64, size(B))
 E[1, :, :, :] .= Ex
 E[2, :, :, :] .= Ey
 E[3, :, :, :] .= Ez
@@ -109,7 +108,7 @@ E[3, :, :, :] .= Ez
 #-------------------------------------------------------------------------------
 # SIMULATION DURATION
 #
-numSteps = trunc(wpInt, tf/dt)   # Number of timesteps in the simulation
+numSteps = trunc(Int64, tf/dt)   # Number of timesteps in the simulation
 println("Number of time steps = $numSteps.")
 
 #-------------------------------------------------------------------------------

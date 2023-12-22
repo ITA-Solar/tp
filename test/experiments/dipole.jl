@@ -27,7 +27,7 @@ tf = 100.0 #n=100   # End time of simulation [s]         |
 
 #...............................................
 # PARTICLE TYPE
-species = 4*ones(wpInt, numparticles) # Specifies the species of the particles 
+species = 4*ones(Int64, numparticles) # Specifies the species of the particles 
 mass = specieTable[species[1], 1]
 charge = specieTable[species[1], 2]
 
@@ -80,7 +80,7 @@ pbc    = (true, true, true) # (x,y,z) Are mesh boundary conditions periodic?
 #-------------------------------------------------------------------------------
 # COMPUTING THE AXES, MAGNETIC FIELD AND ELECTRIC FIELD
 xx, yy, zz, dx, dy, dz = createaxes(xi0, xif, ni)
-Bfield = zeros(wpFloat, numdims, ni[1], ni[2], ni[3])
+Bfield = zeros(Float64, numdims, ni[1], ni[2], ni[3])
 Efield = zeros(size(Bfield))
 discretise!(Bfield, xx, yy, zz, dipolefield, M)
 
@@ -92,7 +92,7 @@ mesh = Mesh(Bfield, Efield, xx, yy, zz)
 #-------------------------------------------------------------------------------
 # SIMULATION DURATION
 #
-numsteps = trunc(wpInt, tf/dt)   # Number of timesteps in the simulation
+numsteps = trunc(Int64, tf/dt)   # Number of timesteps in the simulation
 #println("Number of time steps = $numsteps.")
 
 #-------------------------------------------------------------------------------
