@@ -134,7 +134,7 @@ patchFO = Patch(mesh,
                 )
 patchGCA = Patch(mesh,
                  tpGCA,
-                 GCA,
+                 gca,
                  GCAscheme,
                  GCAinterp,
                  dt,

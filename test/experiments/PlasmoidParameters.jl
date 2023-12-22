@@ -68,7 +68,7 @@ function plasmoidParameters(n, dt)
         nsteps=round(Int, time/dt),
         npart=4,
         tp_expname="plasmoid$(n[1])",
-        tp_expdir="C:/Users/ixyva/data/test",
+        tp_expdir="./",
         solver="full-orbit",
         scheme="RK4",
         interp="trilinear",

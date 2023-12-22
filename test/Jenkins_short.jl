@@ -36,7 +36,7 @@ verbose = 4
     end # testset Unit tests
 
     @testset verbose = verbose ≥ 3 "Modules" begin
-        @testset verbose = true "TraceParticles" begin
+        @testset verbose = true "tp" begin
             test_tp_save_and_tp_load(verbose >= 4)
         end
     end

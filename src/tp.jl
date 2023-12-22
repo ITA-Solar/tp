@@ -74,13 +74,13 @@ export ProportionalAdvection, ProportionalDiffusion
 export SDEParticle, euler_maruyama, milstein_central
 export solve, solve_stoppingtime
 export DiscreteTPCallback
-export GCAPitchAngleScatteringParams, GCA_PAS_constmu_params
+export GCAPitchAngleScatteringParams 
 export GCAPitchAngleScatteringIC
 export GCAPitchAngleFriction, GCAPitchAngleDiffusion
-export GCAPitchAngleFriction_constmu, GCAPitchAngleDiffusion_constmu
 export create_puremesh, get_fields_from_br, tp_get_initial_pos_and_vel!,
         EMfield_at_pos, calc_GCA_IC_and_mu, pitchangle 
 export save_fast_PAS, tp_load_fast
+export gca
 
 
 # meshes.jl

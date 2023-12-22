@@ -201,7 +201,7 @@ patchVay = Patch(mesh,
 # non-relativistic GCA
 patchGCA = Patch(mesh,
                  particlesGCA,
-                 GCA,
+                 gca,
                  rk4,
                  trilinearGCA,
                  dt,
