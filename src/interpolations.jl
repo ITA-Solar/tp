@@ -1,8 +1,8 @@
 
-struct tensor_interpolate
+struct InterpolateTensor
     itp::Array{AbstractInterpolation}
 
-    function tensor_interpolate(
+    function InterpolateTensor(
         axes       ::Tuple{Vector{<:Real}, Vector{<:Real}, Vector{<:Real}},
         tensorfield::Array{<:Real, 3},
         itp_type   ::Interpolations.InterpolationType,
@@ -14,7 +14,7 @@ struct tensor_interpolate
         itp[1] = extrapolate(itp[1], itp_bc)
         new(itp)
     end
-    function tensor_interpolate(
+    function InterpolateTensor(
         axes       ::Tuple{Vector{<:Real}, Vector{<:Real}, Vector{<:Real}},
         tensorfield::Array{<:Real, 4},
         itp_type   ::Interpolations.InterpolationType,
@@ -28,7 +28,7 @@ struct tensor_interpolate
         end 
         new(itp)
     end
-    function tensor_interpolate(
+    function InterpolateTensor(
         axes       ::Tuple{Vector{<:Real}, Vector{<:Real}, Vector{<:Real}},
         tensorfield::Array{<:Real, 5},
         itp_type   ::Interpolations.InterpolationType,
@@ -45,65 +45,10 @@ struct tensor_interpolate
         new(itp)
     end
 end
-function (itp::tensor_interpolate)(x,y,z)
+function (itp::InterpolateTensor)(x,y,z)
     field = Array{typeof(x)}(undef, size(itp.itp)...)
     for i = eachindex(itp.itp)
         field[i] = itp.itp[i](x, y, z)
     end
     return field
-end
-
-function EMfield_itps(
-    mesh   ::AbstractMesh,
-    B      ::AbstractArray,
-    E      ::AbstractArray,
-    )
-    itp_type = Gridded(Linear())
-    itp_bc = Flat()
-    axes = (mesh.x, mesh.y, mesh.z)
-    Bitp = tensor_interpolate(axes, B, itp_type, itp_bc)
-    Eitp = tensor_interpolate(axes, E, itp_type, itp_bc)
-    return Bitp, Eitp
-end
-function EMfield_itps(
-    mesh   ::AbstractMesh,
-    B      ::AbstractArray,
-    E      ::AbstractArray,
-    gradB  ::AbstractArray,
-    gradb  ::AbstractArray,
-    gradExB::AbstractArray,
-    )
-    itp_type = Gridded(Linear())
-    itp_bc = Flat()
-    axes = (mesh.x, mesh.y, mesh.z)
-    #println("tp.jl: Getting GCA problem parameters...")
-    #println("           Creating interpolation objects: B")
-    B_itp = tensor_interpolate(axes, B, itp_type, itp_bc)
-    #println("                                           E")
-    E_itp = tensor_interpolate(axes, E, itp_type, itp_bc)
-    #println("                                           grad B")
-    gradB_itp = tensor_interpolate(axes, gradB, itp_type, itp_bc)
-    #println("                                           grad b")
-    gradb_itp = tensor_interpolate(axes, gradb, itp_type, itp_bc)
-    #println("                                           grad ExB")
-    gradExB_itp = tensor_interpolate(axes, gradExB, itp_type, itp_bc)
-    return B_itp, E_itp, gradB_itp, gradb_itp, gradExB_itp
-end
-function EMfield_itps(
-    mesh   ::AbstractMesh,
-    B      ::AbstractArray,
-    E      ::AbstractArray,
-    gradB  ::AbstractArray,
-    gradb  ::AbstractArray,
-    gradExB::AbstractArray,
-    n      ::AbstractArray,
-    T      ::AbstractArray,
-    )
-    itp_type = Gridded(Linear())
-    itp_bc = Flat()
-    axes = (mesh.x, mesh.y, mesh.z)
-    #println("           Creating interpolation objects: n")
-    n_itp = tensor_interpolate(axes, n, itp_type, itp_bc)
-    T_itp = tensor_interpolate(axes, T, itp_type, itp_bc)
-    return EMfield_itps(mesh, B, E, gradB, gradb, gradExB)..., n_itp, T_itp
 end

@@ -160,7 +160,12 @@ gradB, gradb, gradExB = compute_gradients(Bfield, Efield,
                                           pmesh.x,pmesh.y,pmesh.z,
                                           derivateUpwind
                                           )
-B_itp, E_itp = EMfield_itps(pmesh, Bfield, Efield)
+
+itp_type = Gridded(Linear())
+itp_bc = Flat()
+axes = (pmesh.x, pmesh.y, pmesh.z)
+B_itp = InterpolateTensor(axes, Bfield, itp_type, itp_bc)
+E_itp = InterpolateTensor(axes, Efield, itp_type, itp_bc)
 gcaB = Array{Float64}(undef, 3, npart)
 gcaE = Array{Float64}(undef, 3, npart)
 for i = 1:npart

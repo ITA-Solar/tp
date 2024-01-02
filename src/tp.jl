@@ -61,7 +61,7 @@ include("experiments.jl")
 export FOStaticIC, LorentzForce, ODEParticle, 
         FOParams, GCAParams, GCAStaticIC
 export Patch, run!, update, DEPatch
-export compute_gradients, derivateUpwind, EMfield_itps, calc_GCA_IC_and_mu
+export compute_gradients, derivateUpwind, calc_GCA_IC_and_mu
 export DE_init!
 
 export VectorIC, FloatIC, AbstractInitialConditions, AbstractVariableIC
@@ -119,6 +119,8 @@ export euler, eulerCromer, rk4
 export curl, normal3Donlyz, derivateCentral
 # equations_of_motion.jl
 export fullOrbit, relFullOrbitExplLeapFrog, vay, boris, GCA
+# interpolations.jl
+export InterpolateTensor
 # tp_interpolations.jl
 export gridinterp
 export locateCell

@@ -309,12 +309,12 @@ end # function GCA
 
 struct LorentzForce
 end
-function (lf::LorentzForce)(du, u, p, t)
-    q, m, bx, by, bz, ex, ey, ez = p
+function (lf::LorentzForce)(du, u, p, _)
+    q, m, B_itp, E_itp = p
     x = u[1:3] # The position vector
     v = u[4:6] # The velocity vector
-    B = [bx(x...), by(x...), bz(x...)]
-    E = [ex(x...), ey(x...), ez(x...)]
+    B = B_itp(x...)
+    E = E_itp(x...)
     dvdt = q/m * (E + v × B) 
     dxdt = v
     du[:] = [dxdt; dvdt]

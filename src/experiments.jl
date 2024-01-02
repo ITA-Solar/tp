@@ -407,7 +407,11 @@ function EMfield_at_pos(
     pmesh ::PureMesh
     )
     npart = size(pos)[2]
-    Bitp, Eitp = EMfield_itps(pmesh, Bfield, Efield)
+    itp_type = Gridded(Linear())
+    itp_bc = Flat()
+    axes = (pmesh.x, pmesh.y, pmesh.z)
+    Bitp = InterpolateTensor(axes, Bfield, itp_type, itp_bc)
+    Eitp = InterpolateTensor(axes, Efield, itp_type, itp_bc)
     B_at_pos = Array{Float64}(undef, 3, npart)
     E_at_pos = Array{Float64}(undef, 3, npart)
     for i = 1:npart
