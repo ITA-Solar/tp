@@ -48,7 +48,7 @@ end
 function (p::FOParams{<:Real})(i::Int64=1)
     return (p.q, p.m, p.bx, p.by, p.bz, p.ex, p.ey, p.ez)
 end
-function (p::FOParams{Vector{<:Real}})(i::Int64=1)
+function (p::FOParams{<:Vector{<:Real}})(i::Int64=1)
     return (p.q[i], p.m[i], p.bx, p.by, p.bz, p.ex, p.ey, p.ez)
 end
 
@@ -57,11 +57,11 @@ struct GCAParams{qType,RealT} <: AbstractProblemParameters
     q      ::qType
     m      ::qType
     mu     ::Vector{RealT}
-    B      ::Vector{AbstractInterpolation}
-    E      ::Vector{AbstractInterpolation}
-    gradB  ::Vector{AbstractInterpolation}
-    gradb  ::Matrix{AbstractInterpolation}
-    gradExB::Matrix{AbstractInterpolation}
+    B      ::tensor_interpolate
+    E      ::tensor_interpolate
+    gradB  ::tensor_interpolate
+    gradb  ::tensor_interpolate
+    gradExB::tensor_interpolate
 
     function GCAParams(
         q      ::Any,
@@ -83,8 +83,8 @@ end
 function (p::GCAParams{<:Real,<:Real})(i::Int64=1)
     return (p.q, p.m, p.mu[i], p.B, p.E, p.gradB, p.gradb, p.gradExB)
 end 
-function (p::GCAParams{Vector{<:Real},<:Real})(i::Int64=1)
-    return (p.q[i], p.m[i]. p.mu[i], p.B, p.E, p.gradB, p.gradb, p.gradExB)
+function (p::GCAParams{<:Vector{<:Real},<:Real})(i::Int64=1)
+    return (p.q[i], p.m[i], p.mu[i], p.B, p.E, p.gradB, p.gradb, p.gradExB)
 end 
 
 
@@ -178,7 +178,7 @@ end
 function (p::GCAPitchAngleScatteringParams{<:Real})(_::Int64=1)
     return (p.q, p.m, p.lnΛ, p.B, p.E, p.gradB, p.gradb, p.gradExB, p.n, p.T)
 end
-function (p::GCAPitchAngleScatteringParams{Vector{<:Real}})(i::Int64=1)
+function (p::GCAPitchAngleScatteringParams{<:Vector{<:Real}})(i::Int64=1)
     return (p.q[i], p.m[i]. p.lnΛ[i], p.B, p.E, p.gradB, p.gradb, p.gradExB,
         p.n, p.T
         )

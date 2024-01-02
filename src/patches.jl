@@ -52,7 +52,7 @@ function update(patch::DEPatch)
         ;
         safetycopy=false,
     )
-    @time sim = solve(
+    @time sim = DifferentialEquations.solve(
         ensamble_prob, 
         EnsembleSerial()
         #EnsembleThreads()
@@ -61,7 +61,7 @@ function update(patch::DEPatch)
         ;
         trajectories=patch.tp.npart, # or just patch.solver?
         progress=true,
-        callback=cb,
+        #callback=cb,
         maxiters=1000  
     )
 end

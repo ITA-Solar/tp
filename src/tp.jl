@@ -102,6 +102,10 @@ export setinitpos! # Sets the initial position of particles
 export setinitvel! # Sets the initial velocity of particles
 export kineticenergy # Computes the non-rel. kinetic energy at all time steps
 export computeμ
+
+# initial_conditions.jl
+export FO_IC, GCA_IC
+
 # utils.jl
 export randn
 export rand

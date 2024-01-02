@@ -25,9 +25,9 @@ methods, such as:
     ParticleSoA(pos::Matrix, vel::Matrix, species::Vector, numSteps::Integer)
     Mesh(bField::Array{4},
          eField::Array{4},
-         xCoords::Vector,
-         yCoords::Vector,
-         zCoords::Vector)
+         xx::Vector,
+         yy::Vector,
+         zz::Vector)
     run!(patch:Patch)
 and the chosen numerical solver, scheme and interpolation chosen.
 """
@@ -40,6 +40,7 @@ numParticles = 2  # Number of particles to simulae
 species = [1, 2]  # Specifies the species of the particles 
 #   (electron, proton)
 tf = 2*2π/(5.93096958e7) # s. End time of simulation
+tspan = (0,tf)
 #   multiple of electron (1eV) gyrofreq. at Bz=3.3e-4 G
 numSteps = 1000   # Number of timesteps in the simulation
 dt = tf/numSteps  # Size of timestep
@@ -131,11 +132,13 @@ E[1, :, :, :] .= Ex
 E[2, :, :, :] .= Ey
 E[3, :, :, :] .= Ez
 # Create coordinates of cell
-xCoords = [-0.1, 1.1]
-yCoords = [-0.1, 1.1]
-zCoords = [-0.1, 1.1]
+xx = [-0.1, 1.1]
+yy = [-0.1, 1.1]
+zz = [-0.1, 1.1]
 # Create Mesh instance
-mesh = Mesh(B, E, xCoords, yCoords, zCoords)
+mesh = Mesh(B, E, xx, yy, zz)
+# Create mesh without fields (for new DifferentialEquations.jl implementation)
+puremesh = PureMesh(xx, yy, zz)
 
 #-------------------------------------------------------------------------------
 # PARTICLE CREATION
@@ -149,6 +152,23 @@ pos[:, 1] = [x0e, y0e, z0e]  # Initial position electron
 pos[:, 2] = [x0p, y0p, z0p]  # Initial position proton
 particlesEC = ParticleSoA(pos, vel, species, numSteps)
 particlesVay = ParticleSoA(pos, vel, species, numSteps)
+#  Create DifferentialEquations.jl particle type
+ic_FO = FO_IC(
+    VectorIC(pos[1,:]), 
+    VectorIC(pos[2,:]), 
+    VectorIC(pos[3,:]), 
+    VectorIC(vel[1,:]), 
+    VectorIC(vel[2,:]), 
+    VectorIC(vel[3,:])
+    )
+params_FO = FOParams(
+    [-tp.e, tp.e],
+    [tp.m_e, tp.m_p],
+    puremesh,
+    B,
+    E,
+    )
+DEparticlesFO = ODEParticle(LorentzForce(), ic_FO, params_FO, numParticles)
 
 # GCA particles
 # Set initial position and velocities
@@ -164,8 +184,25 @@ vparal = zeros(numParticles) # Velocity parallell to the magnetic field
 vparal[1] = vel[3,1] 
 vparal[2] = vel[3,2] 
 μ = [μₑ, μₑ]               # Magnetic moment of the particles
+
 # Create ParticlesSoA-instance
 particlesGCA = GCAParticleSoA(R, vparal, μ, species, numSteps)
+#  Create DifferentialEquations.jl particle type
+ic_GCA = GCA_IC(
+    VectorIC(R[1,:]), 
+    VectorIC(R[2,:]), 
+    VectorIC(R[2,:]), 
+    VectorIC(vparal)
+    )
+params_GCA = GCAParams(
+    [-tp.e, tp.e],
+    [tp.m_e, tp.m_p],
+    [μₑ, μₚ],
+    puremesh,
+    B, E, mesh.∇B, mesh.∇b̂, mesh.∇ExB,
+    )
+DEparticlesGCA = ODEParticle(GCA(), ic_GCA, params_GCA, numParticles)
+
 
 #-------------------------------------------------------------------------------
 # CREATE PATCH
@@ -207,12 +244,19 @@ patchGCA = Patch(mesh,
                  dt,
                  numSteps,
                  numParticles)
+
+# Using DifferentialEquations.jl
+DEpatchFO = DEPatch(tspan, DEparticlesFO, puremesh)
+DEpatchGCA = DEPatch(tspan, DEparticlesGCA, puremesh)
+
 #-------------------------------------------------------------------------------
 # RUN SIMULATION
 run!(patchEC)
 run!(patchVay)
 #run!(patchBoris)
 run!(patchGCA)
+simFO = run!(DEpatchFO)
+simGCA = run!(DEpatchGCA)
 
 #-------------------------------------------------------------------------------
 # CALCULATE DEVIATIONS FROM ANALYTICAL SOLUTION
@@ -272,6 +316,7 @@ rmsErrpyGCA = √(sum((posp[2,2:numSteps] .-
     numPosp[2,2:numSteps]).^2)/numSteps)
 rmsErrpzGCA = √(sum((posp[3,2:numSteps] .-
     numPosp[3,2:numSteps]).^2)/numSteps)
+
 #-------------------------------------------------------------------------------
 # PLOT RESULTS
 if length(ARGS) >= 1 && ARGS[1] == "plot"
@@ -313,5 +358,25 @@ end # testset Vay
     @test isapprox(patchGCA.tp.R[2,1,end], 0.00, atol=1e-15)
     @test isapprox(patchGCA.tp.R[3,1,end], 0.00, atol=1e-15)
 end # testset GCA: RK4
+
+# Full orbit using DifferentialEquations.jl
+@testset verbose = true "DE-FO" begin
+    # Electron
+    @test isapprox(simFO.u[1].u[end][1], pose[1,end], rtol=1e-3)
+    @test isapprox(simFO.u[1].u[end][2], pose[2,end], atol=1e-5)
+    @test isapprox(simFO.u[1].u[end][3], pose[3,end], rtol=1e-9)
+    # Proton
+    @test isapprox(simFO.u[2].u[end][1], posp[1,end], rtol=1e-9)
+    @test isapprox(simFO.u[2].u[end][2], posp[2,end], rtol=1e-9)
+    @test isapprox(simFO.u[2].u[end][3], posp[3,end], rtol=1e-9)
+end
+
+# GCA using DifferentialEquations.jl
+@testset verbose = true "DE-GCA" begin
+    # Electron
+    @test isapprox(simGCA.u[1].u[end][1], 0.02, rtol=1e-13)
+    @test isapprox(simGCA.u[1].u[end][2], 0.00, atol=1e-15)
+    @test isapprox(simGCA.u[1].u[end][3], 0.00, rtol=1e-15)
+end
 
 

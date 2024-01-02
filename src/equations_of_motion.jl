@@ -328,19 +328,13 @@ function (gca::GCA)(du, u, p, _)
     vparal = u[4] # Particle velocity parallel to the magnetic field
     # Extract parameters
     q, m, μ, B_itp, E_itp, gradB_itp, gradb_itp, gradExB_itp = p
-    B_vec = [B_itp[1](R...), B_itp[2](R...), B_itp[3](R...)]
-    E_vec = [E_itp[1](R...), E_itp[2](R...), E_itp[3](R...)]
-    gradB_vec = [ gradB_itp[1](R...), gradB_itp[2](R...), gradB_itp[3](R...) ] 
-    gradb = [ 
-        gradb_itp[1,1](R...) gradb_itp[1,2](R...) gradb_itp[1,3](R...)
-        gradb_itp[2,1](R...) gradb_itp[2,2](R...) gradb_itp[2,3](R...)
-        gradb_itp[3,1](R...) gradb_itp[3,2](R...) gradb_itp[3,3](R...)
-        ]
-    gradExB = [
-        gradExB_itp[1,1](R...) gradExB_itp[1,2](R...) gradExB_itp[1,3](R...)
-        gradExB_itp[2,1](R...) gradExB_itp[2,2](R...) gradExB_itp[2,3](R...)
-        gradExB_itp[3,1](R...) gradExB_itp[3,2](R...) gradExB_itp[3,3](R...) 
-        ]
+    # Use the gyrocentre position interpolate the vectors, matrices and
+    # scalars from the interpolation objects.
+    B_vec = B_itp(R...)
+    E_vec = E_itp(R...)
+    gradB_vec = gradB_itp(R...)
+    gradb = gradb_itp(R...)
+    gradExB = gradExB_itp(R...)
     B = norm(B_vec)   # The magnetic field strength
     b_vec = B_vec/B       # An unit vector pointing in the direction of the
                        #  magnetic field
