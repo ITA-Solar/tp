@@ -8,55 +8,36 @@
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 
-abstract type AbstractVariableIC <: AbstractInitialConditions end
+abstract type AbstractICvariable <: AbstractInitialConditions end
 
-struct FOStaticIC{RealT<:Real} <: AbstractInitialConditions
-    pos::Matrix{RealT}
-    vel::Matrix{RealT}
+struct InitialConditions <: AbstractInitialConditions
+    statevector::Vector{AbstractICvariable}
+
+    function InitialConditions(statevariables...)
+        mask = [typeof(sv) <: Real for sv in statevariables]
+        statevector = Vector{AbstractICvariable}(undef, length(mask))
+        for i = eachindex(mask)
+            if mask[i]
+                statevector[i] = FloatIC(statevariables[i])
+            else
+                statevector[i] = VectorIC(statevariables[i])
+            end
+        end
+        new(statevector)
+    end
 end
-function (ic::FOStaticIC)(i::Integer=1)
-    return [ic.pos[:,i]; ic.vel[:,i]]
-end 
-
-struct GCAStaticIC{RealT<:Real} <: AbstractInitialConditions
-    R::Matrix{RealT}
-    vparal::Vector{RealT}
-end
-function (ic::GCAStaticIC)(i::Integer=1)
-    return [ic.R[:,i]; ic.vparal[i]]
+function (ic::InitialConditions)(i::Int64=1)
+    return [j(i) for j in  ic.statevector] 
 end
 
-
-struct FO_IC <: AbstractInitialConditions
-    x ::AbstractVariableIC
-    y ::AbstractVariableIC
-    z ::AbstractVariableIC
-    vx::AbstractVariableIC
-    vy::AbstractVariableIC
-    vz::AbstractVariableIC
-end
-function (ic::FO_IC)(i::Integer=1)
-    return [ic.x(i), ic.y(i), ic.z(i), ic.vx(i), ic.vy(i), ic.vz(i)]
-end 
-
-struct GCA_IC <: AbstractInitialConditions
-    rx    ::AbstractVariableIC
-    ry    ::AbstractVariableIC
-    rz    ::AbstractVariableIC
-    vparal::AbstractVariableIC
-end
-function (ic::GCA_IC)(i::Integer=1)
-    return [ic.rx(i), ic.ry(i), ic.rz(i), ic.vparal(i)]
-end 
-
-struct FloatIC{RealT<:Real} <: AbstractVariableIC
+struct FloatIC{RealT<:Real} <: AbstractICvariable
     float::RealT
 end
 function (ic::FloatIC)(_::Integer=1)
     return ic.float
 end
 
-struct VectorIC{RealT<:Real} <: AbstractVariableIC
+struct VectorIC{RealT<:Real} <: AbstractICvariable
     vec::Vector{RealT}
 end
 function (ic::VectorIC)(i::Integer=1)
@@ -64,28 +45,10 @@ function (ic::VectorIC)(i::Integer=1)
 end
 
 
-struct PhaseSpace1DIC <: AbstractInitialConditions
-    x::AbstractVariableIC
-    v::AbstractVariableIC
-end
-function (ic::PhaseSpace1DIC)(i::Int64=1)
-    return [ic.x(i); ic.v(i)]
-end
-
-struct GCAPitchAngleScatteringIC <: AbstractInitialConditions
-    rx    ::AbstractVariableIC
-    ry    ::AbstractVariableIC
-    rz    ::AbstractVariableIC
-    vparal::AbstractVariableIC
-    beta  ::AbstractVariableIC
-end
-function (ic::GCAPitchAngleScatteringIC)(i::Integer=1)
-    return [ic.rx(i), ic.ry(i), ic.rz(i), ic.vparal(i), ic.beta(i)]
-end
 #-------------------------------------------------------------------------------
 # On the fly generalisation of initial conditions
 #
-struct RandomUniformIC{RealT<:Real} <: AbstractVariableIC
+struct RandomUniformIC{RealT<:Real} <: AbstractICvariable
     init_seed::Int64
     curr_seed::Int64
     lower_bound::RealT
@@ -99,7 +62,7 @@ function (ic::RandomUniformIC)(i::Integer=1)
     return lower_bound + extent * r
 end
 
-#struct RandomMaxwellianIC{RealT<:Real} <: AbstractVariableIC
+#struct RandomMaxwellianIC{RealT<:Real} <: AbstractICvariable
 #    init_seed::Int64
 #    curr_seed::Int64
 #    lower_bound::

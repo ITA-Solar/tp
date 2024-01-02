@@ -85,12 +85,12 @@ function init()
     beta0 = pitchangle(params.mass, B_at_pos, vparal0, mu0)
     # Make half of the beta0-values negative
     beta0[1:convert(Int64, npart/2)] *= -1.0
-    ic = GCAPitchAngleScatteringIC(
-        VectorIC(R0[1,:]),
-        VectorIC(R0[2,:]),
-        VectorIC(R0[3,:]),
-        VectorIC(vparal0),
-        VectorIC(beta0),
+    ic = InitialConditions(
+        R0[1,:],
+        R0[2,:],
+        R0[3,:],
+        vparal0,
+        beta0,
         )
     # Create parameters for the EoM
     coulomb_logarithm = 5e-11 # 5e-11 = mfp = 6e9/5, 5e-8 = mfp 6e6/5

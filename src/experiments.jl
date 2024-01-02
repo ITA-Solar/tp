@@ -449,11 +449,11 @@ function get_GCA_IC(
         B_at_pos,
         E_at_pos,
     )
-    return GCA_IC(
-        VectorIC(R[1,:]), 
-        VectorIC(R[2,:]), 
-        VectorIC(R[3,:]), 
-        VectorIC(vparal)
+    return InitialConditions(
+        R[1,:], 
+        R[2,:], 
+        R[3,:], 
+        vparal
         ), 
         mu
 end
@@ -462,13 +462,13 @@ function get_FO_IC(
     pos::Matrix{<:Real},
     vel::Matrix{<:Real},
 )
-    return FO_IC(
-        VectorIC(pos[1,:]),
-        VectorIC(pos[2,:]),
-        VectorIC(pos[3,:]),
-        VectorIC(vel[1,:]),
-        VectorIC(vel[2,:]),
-        VectorIC(vel[3,:]),
+    return InitialConditions(
+        pos[1,:],
+        pos[2,:],
+        pos[3,:],
+        vel[1,:],
+        vel[2,:],
+        vel[3,:],
         )
 end
 

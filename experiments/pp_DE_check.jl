@@ -148,7 +148,14 @@ q, m = (1.0, 1.)
 npart = 4
 pmesh = PureMesh(xx, yy, zz)
 p  = FOParams(q, m, pmesh, Bfield, Efield)
-foic = FOStaticIC(posd, veld)
+foic = InitialConditions(
+        posd[1,:], 
+        posd[2,:], 
+        posd[3,:], 
+        veld[1,:], 
+        veld[2,:], 
+        veld[3,:]
+        )
 part = ODEParticle(LorentzForce(), foic, p, 4)
 tspan = (0.0, time)
 DEpatch = DEPatch(tspan, part, pmesh)
@@ -179,7 +186,7 @@ for i = 1:npart
 end     
 R, vparal, mu = calc_GCA_IC_and_mu(posd, veld, q, m, gcaB, gcaE)
 pGCA = GCAParams(q, m, mu, pmesh, Bfield, Efield, gradB, gradb, gradExB)
-icGCA = GCAStaticIC(R, vparal)
+icGCA = InitialConditions(R[1,:], R[2,:], R[3,:], vparal)
 gcapart = ODEParticle(GCA(), icGCA, pGCA, npart)
 GCApatch = DEPatch(tspan, gcapart, pmesh)
 println("Running GCApatch")

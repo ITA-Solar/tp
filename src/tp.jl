@@ -104,7 +104,7 @@ export kineticenergy # Computes the non-rel. kinetic energy at all time steps
 export computeμ
 
 # initial_conditions.jl
-export FO_IC, GCA_IC
+export InitialConditions
 
 # utils.jl
 export randn

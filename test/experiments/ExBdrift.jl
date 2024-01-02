@@ -153,13 +153,13 @@ pos[:, 2] = [x0p, y0p, z0p]  # Initial position proton
 particlesEC = ParticleSoA(pos, vel, species, numSteps)
 particlesVay = ParticleSoA(pos, vel, species, numSteps)
 #  Create DifferentialEquations.jl particle type
-ic_FO = FO_IC(
-    VectorIC(pos[1,:]), 
-    VectorIC(pos[2,:]), 
-    VectorIC(pos[3,:]), 
-    VectorIC(vel[1,:]), 
-    VectorIC(vel[2,:]), 
-    VectorIC(vel[3,:])
+ic_FO = InitialConditions(
+    pos[1,:], 
+    pos[2,:], 
+    pos[3,:], 
+    vel[1,:], 
+    vel[2,:], 
+    vel[3,:]
     )
 params_FO = FOParams(
     [-tp.e, tp.e],
@@ -188,11 +188,11 @@ vparal[2] = vel[3,2]
 # Create ParticlesSoA-instance
 particlesGCA = GCAParticleSoA(R, vparal, μ, species, numSteps)
 #  Create DifferentialEquations.jl particle type
-ic_GCA = GCA_IC(
-    VectorIC(R[1,:]), 
-    VectorIC(R[2,:]), 
-    VectorIC(R[2,:]), 
-    VectorIC(vparal)
+ic_GCA = InitialConditions(
+    R[1,:], 
+    R[2,:], 
+    R[2,:], 
+    vparal
     )
 params_GCA = GCAParams(
     [-tp.e, tp.e],
