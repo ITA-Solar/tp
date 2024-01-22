@@ -3,18 +3,13 @@
 # Author: e.s.oyre@astro.uio.no
 #-------------------------------------------------------------------------------
 #
-#             Interpolations_tp.jl
+#             interpolations.jl
 #
 #-------------------------------------------------------------------------------
-# Module containing interpolation methods.
+# Contains interpolation schemes.
 #-------------------------------------------------------------------------------
 
 
-
-
-#-----------------------#
-# Type of interpolation #
-#-------------------------------------------------------------------------------
 function gridinterp(
     tensorfield ::AbstractArray{T} where {T<:Real},
     interpolator::Function,
@@ -39,7 +34,7 @@ function gridinterp(
 end # function gridinterp
 #|
 function gridinterp(
-    mesh        ::Mesh,
+    mesh        ::AbstractMesh,
     interpolator::Function,
     pos         ::Vector{T} where {T<:Real}
     )
@@ -109,7 +104,7 @@ function trilinear( # Arbitrary vector-field
 end # function trilinear
 #|
 function trilinear( # Method for passing the mesh-struct
-    mesh   ::Mesh,
+    mesh   ::AbstractMesh,
     (i,j,k)::Tuple{Integer, Integer, Integer},
     (x,y,z)::Tuple{Real, Real, Real}
     )
@@ -147,7 +142,7 @@ function bilinear_xz( # Arbitrary vector-field
 end # function trilinear
 #|
 function bilinear_xz( 
-    mesh   ::Mesh,
+    mesh   ::AbstractMesh,
     (i,j,k)::Tuple{Integer, Integer, Integer},
     (x,y,z)::Tuple{Real, Real, Real}
     )
@@ -166,7 +161,7 @@ end # function trilinear
 
 
 function trilinearGCA(
-    mesh   ::Mesh,
+    mesh   ::AbstractMesh,
     (i,j,k)::Tuple{Integer, Integer, Integer},
     (x,y,z)::Tuple{Real, Real, Real}
     )
@@ -195,7 +190,7 @@ function trilinearGCA(
 end # function trilinearGCA
 
 function bilinear_xzGCA(
-    mesh   ::Mesh,
+    mesh   ::AbstractMesh,
     (i,j,k)::Tuple{Integer, Integer, Integer},
     (x,y,z)::Tuple{Real, Real, Real}
     )
