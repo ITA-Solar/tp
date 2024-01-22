@@ -9,6 +9,30 @@
 # Module containing the utility functions.
 #-------------------------------------------------------------------------------
 
+"""
+    Base.dropdims(arr::AbstractArray)
+Extend `dropdims` to find and drop all axes with one point when `dims` keyword 
+is excluded.
+"""
+function Base.dropdims(arr::AbstractArray)
+    meshsize = size(arr)
+    idxs = findall(x -> x == 1, meshsize)
+    for dim in idxs
+        arr = dropdims(arr, dims=dim)
+    end
+    return arr
+end
+
+
+"""
+    Base.dropdims(axes::Tuple{Vararg{Vector})
+Extend `dropdims` to find and drop all axes with one point when `dims` keyword 
+is excluded.
+"""
+function Base.dropdims(axes::Tuple{Vararg{Vector}})
+    mask = findall(x -> length(x) != 1, axes)
+    return axes[mask]
+end
 
 #----------------------------------------#
 # Vector potential generation            #
