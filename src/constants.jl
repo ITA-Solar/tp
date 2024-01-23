@@ -37,12 +37,6 @@ cgs2SI_e = 1e-6 # g cm s^-2 Fr^-1 * 1e-3 kg/g * 1e-2 m/cm * 1e-1 Fr/C
                 # = kg m /s^2/C..........................electric field
 cgs2SI_r = 1e3  # g/cm^3 * 1e-3 kg/g * 1e6 cm^3/m^3 = kg/m^3 ...density
 
-# Unit conversions from Bifrost code units
-code2cgs_t = 1e2 #.........................100s....................time
-code2cgs_l = 1e8 #.........................1Mm...................length
-code2SI_t = code2cgs_t*cgs2SI_t
-code2SI_l = code2cgs_l*cgs2SI_l
-
 # Other convertion factors
 density2numberdensity_MHD = 1/(m_e + m_p)
 
