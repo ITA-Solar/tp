@@ -3,362 +3,282 @@
 # Author: e.s.oyre@astro.uio.no
 #-------------------------------------------------------------------------------
 #
-#                 Solvers.jl
+#                 equations_of_motion.jl
 #
 #-------------------------------------------------------------------------------
-# Module containing the various solvers.
+# Module containing various equations of motion.
 #-------------------------------------------------------------------------------
 
 """
-    fullOrbit(pos, vel, specie, bField, eField, dt, scheme)
-
-Solves the Lorentz equation of motion using an arbitrary numerical scheme
-(defined by the argument `scheme`).
+    fieldlinetracing_forward(u, p, _)
+The equation of motion for tracing a field line forward. The statevector `u` 
+contains the position in 3D, and `p` contains an interpolation functor giving 
+the field at the position.
 """
-function fullOrbit_interstaticfield(
-    pos         ::Vector{T} where {T<:Real},
-    v           ::Vector{T} where {T<:Real}, # velocity
-    specie      ::Integer,
-    mesh        ::Mesh,
-    dt          ::Real,
-    interpolator::Function,
-    scheme      ::Function
-    )
-    # Extract particle mass and charge
-    m = specieTable[specie, 1]
-    q = specieTable[specie, 2]
-    # Interpolate fields
-    fields, _ = gridinterp(mesh,
-                           interpolator,
-                           pos)
-    B = fields[1]
-    E = fields[2]
-    #
-    statevector = [pos; v]
-    statevectorNext = scheme(statevector,
-                             dt, 
-                             eomLorentzforce,
-                             B, E, q, m)
-    return statevectorNext[1:3], statevectorNext[4:6]
-end # funcion fullOrbit_interstaticfield
-
-function fullOrbit(pos        ::Vector{T} where {T<:Real},
-                   v           ::Vector{T} where {T<:Real}, # velocity
-                   specie      ::Integer,
-                   mesh        ::Mesh,
-                   dt          ::Real,
-                   interpolator::Function,
-                   scheme      ::Function
-                   )
-    # Extract particle mass and charge
-    m = specieTable[specie, 1]
-    q = specieTable[specie, 2]
-    #
-    statevector = [pos; v]
-    statevectorNext = scheme(statevector,
-                             dt, 
-                             eomLorentzforce,
-                             q, m, mesh, interpolator,
-                             )
-    return statevectorNext[1:3], statevectorNext[4:6]
-end # function fullOrbit
-
-
-function eomLorentzforce(
-    s::Vector{T} where {T<:Real}, # The state vector
-    B::Vector{T} where {T<:Real}, # The magnetic field
-    E::Vector{T} where {T<:Real}, # The electric field
-    q::Real,         # Charge
-    m::Real          # Mass
-    )
-    x = s[1:3] # The position vector
-    v = s[4:6] # The velocity vector
-    dvdt = q/m * (E + v × B) 
-    dxdt = v
-    dsdt = [dxdt; dvdt]
-    return dsdt
-end # function eomLorentzforce
-#|
-function eomLorentzforce(
-    statevector ::Vector{T} where {T<:Real}, # The state vector
-    q           ::Real,         # Charge
-    m           ::Real,         # Mass
-    mesh        ::Mesh,            # The mesh containing the magnetic field
-    interpolator::Function         # Interpolation function used for evaluating
-                                   #   the field at the stavector-location
-    )
-    x = statevector[1:mesh.numdims] # The position vector
-    v = statevector[mesh.numdims+1:2mesh.numdims] # The velocity vector
-    # Interpolate fields
-    fields, _ = gridinterp(mesh,
-                           interpolator,
-                           x)
-    B = fields[1]
-    E = fields[2]
-    dvdt = q/m * (E + v × B)
-    dxdt = v
-    dsdt = [dxdt; dvdt]
-    return dsdt
-end # function eomLorentzforce
-
-
-function fieldtracingforward(
-    statevector ::Vector{T} where {T<:Real}, # Should be just position
-    vectorfield ::Array{T, 4} where {T<:Real},
-    interpolator::Function,
-    xx          ::Vector{T} where {T<:Real},
-    yy          ::Vector{T} where {T<:Real},
-    zz          ::Vector{T} where {T<:Real}
-    )
-    interpfield, _ = gridinterp(vectorfield, interpolator, statevector,
-                                xx, yy, zz)
-    fieldstrength = norm(interpfield)
-    fielddirection = interpfield ./ fieldstrength
+function fieldlinetracing_forward(u, p, _)
+    field_itp = p
+    x, y, z = u
+    field = field_itp(x,y,z)
+    fieldstrength = norm(field)
+    fielddirection = field ./ fieldstrength
     dsdt = fielddirection
     return dsdt
-end # function fieldtracing
+end
 
-function fieldtracingbackward(
-    statevector ::Vector{T} where {T<:Real}, # Should be just position
-    vectorfield ::Array{T, 4} where {T<:Real},
-    interpolator::Function,
-    xx          ::Vector{T} where {T<:Real},
-    yy          ::Vector{T} where {T<:Real},
-    zz          ::Vector{T} where {T<:Real}
-    )
-    interpfield, _ = gridinterp(vectorfield, interpolator, statevector,
-                                xx, yy, zz)
-    fieldstrength = norm(interpfield)
-    fielddirection = interpfield ./ fieldstrength
+
+"""
+    fieldlinetracing_backward(u, p, _)
+The equation of motion for tracing a field line backward. The statevector `u` 
+contains the position in 3D, and `p` contains an interpolation functor giving 
+the field at the position.
+"""
+function fieldlinetracing_backward(u, p, _)
+    field_itp = p
+    x, y, z = u
+    field = field_itp(x,y,z)
+    fieldstrength = norm(field)
+    fielddirection = field ./ fieldstrength
     dsdt = -fielddirection
     return dsdt
-end # function fieldtracing
-    
-
-function relFullOrbitExplLeapFrog(pos         ::Vector{T} where {T<:Real},
-                                  vel         ::Vector{T} where {T<:Real}, 
-                                  specie      ::Integer,
-                                  mesh        ::Mesh,
-                                  dt          ::Real,
-                                  interpolator::Function,
-                                  scheme      ::Function
-                                  )
-    # Extract particle mass and charge
-    mass  = specieTable[specie, 1]
-    charge = specieTable[specie, 2]
-
-    #
-    # Step 1: Evaluate half-step in time for position
-    #
-    posHalf = positionHalfStep(pos, vel, dt)
-    # Interpolate fields to this location
-    fields, _ = gridinterp(mesh,
-                  interpolator,
-                  posHalf)
-    bField = fields[1]
-    eField = fields[2]
-
-    # 
-    # Step 2: Evaluate full time step in velocity, which is shceme-dependent.
-    #
-    velNext = scheme(vel, bField, eField, mass, charge, dt)
-    
-    #
-    # Step 3: Evaluate second half of time step in position
-    # 
-    posNext = positionHalfStep(posHalf, velNext, dt)
-
-    return posNext, velNext
-end # function relFullOrbitExpLeapFrog
-
-
-function gca(pos         ::Vector{T} where {T<:Real},
-             vel         ::Vector{T} where {T<:Real},
-             specie      ::Integer,
-             mesh        ::Mesh,
-             dt          ::Real,
-             interpolator::Function,
-             scheme      ::Function
-             )
-    # Interpolate fields to this location
-    fields, _ = gridinterp(mesh, interpolator, pos)
-    # i, j k are cell corner indexes in mesh. Corresponding to the 
-    #  position of the particle.
-    bField = fields[1] # The magnetic field
-    eField = fields[2] # The electric field
-    ∇B = fields[3] # The gradient of the magnetic field.
-    
-
-    # Extract particle mass and charge
-    m = specieTable[specie, 1]
-    q = specieTable[specie, 2]
-    
-    vperp  = vel[4]    # Particle velocity perpendicular to the magne. field
-    vparal = vel[5]    # Particle velocity parallel to the magnetic field
-    μ  = vel[6]      # The magnetic moment
-    B = norm(bField) # The magnetic field strength
-    b̂ = bField/B     # An unit vector pointing in the direction of the
-                       #  magnet field
-    
-    # Electric field component parallel to the magnetic field
-    Eparal = eField ⋅ b̂ 
-    
-    # Compute the acceleration 
-    accparal = (q*Eparal - μ*b̂⋅∇B)/m # along the magnetic field lines
-    acc = accparal*b̂              # The vector
-    # With spatially changing fields, the velocity at this point will not be the
-    # same as the last, independent of time.
-    velHere = vparal*b̂ + b̂/B × (-c*eField + μ*c/q*∇B)
-    
-    # Use integration scheme to find velocities at the next time step
-    vparalnext    = scheme(vparal, accparal, dt)
-    posNext, v = scheme(pos, velHere, acc, dt) # Use v∥next? Will
-    # essentially be used if the scheme is euler cromer since a∥ is in acc.
-    # norm(velNext) - norm(velhere) should equal v∥next
-    #or just? posNext, v = scheme(pos, vel[1:3], acc, dt)
-    
-    # Compute some auxiliary quantities
-    vperpnext = √(norm(v)^2 - vparalnext^2) 
-    μnext = m*vperpnext^2/(2B) #  (should be constant for all times)
-    # Maybe μ should be forced constant and kept as a parameter to this solver.
-    #   This would require a change in the implementation of solvers and
-    #   Patch.run!, where e.g. the particle type is passed to solver. Or that
-    #   run! is passed with the particle type, not the patch, such that one may
-    #   define different run methods depending on the particle type. 
-
-    velNext = [v[1], v[2], v[3], vperpnext, vparalnext, μnext]
-    return posNext, velNext
-end # function GCA
-
-function gca(
-    pos         ::Vector{T} where {T<:Real},
-    vel         ::Real,
-    μ           ::Real,
-    specie      ::Integer,
-    mesh        ::Mesh,
-    dt          ::Real,
-    interpolator::Function,
-    scheme      ::Function
-    )
-    # Extract particle mass and charge
-    m = specieTable[specie, 1]
-    q = specieTable[specie, 2]
-    #
-    statevector = [pos; vel]
-    statevectorNext = scheme(statevector,
-                             dt, 
-                             eom_gca,
-                             q, m, μ, mesh, interpolator
-                             )
-    return statevectorNext[1:3], statevectorNext[4]
-    
-end # function GCA
-
-function eom_gca(
-    statevector ::Vector{T} where {T<:Real},
-    q           ::Real,
-    m           ::Real,
-    μ           ::Real,
-    mesh        ::Mesh,
-    interpolator::Function
-    )
-    R      = statevector[1:3]
-    vparal = statevector[4] # Particle velocity parallel to the magnetic field
-
-    # Interpolate fields to this location
-    fields, _ = gridinterp(mesh, interpolator, R)
-    # i, j k are cell corner indexes in mesh. Corresponding to the 
-    #  position of the particle.
-    B⃗ = fields[1] # The magnetic field
-    E⃗ = fields[2] # The electric field
-    ∇B = fields[3]     # The gradient of the magnetic field.
-    ∇b̂ = fields[4]
-    ∇ExB = fields[5]
-    local B = norm(B⃗)   # The magnetic field strength
-    b̂ = B⃗/B       # An unit vector pointing in the direction of the
-                       #  magnetic field
-    # Electric field component parallel to the magnetic field
-    Eparal = E⃗⋅b̂ 
-    # Calculate drifts
-    ExBdrift = (E⃗ × b̂)/B
-    ∇Bdrift = μ/(q*B)*(b̂ × ∇B)
-    # Total time derivatives. Assumes ∂/∂t = 0,
-    db̂dt = vparal * (∇b̂ * b̂) + ∇b̂*ExBdrift
-    dExBdt = vparal * (∇ExB * b̂) + ∇ExB*ExBdrift
-    
-    # Compute the perpendicular velcoity
-    dRperpdt = ExBdrift + ∇Bdrift + m*b̂/(q*B) × (vparal*db̂dt + dExBdt)
-    #dRperpdt = b̂/B × (-E⃗ + μ/q*∇B + m/q*(vparal*db̂dt + dExBdt))  # old
-
-    # Compute the acceleration 
-    dvparaldt = (q*Eparal - μ*b̂⋅∇B)/m # along the magnetic field lines
-    # With correction proposed by Birn et al., 2004:
-    #dvparaldt = (q*Eparal - μ*b̂⋅∇B)/m + ExBdrift⋅db̂dt + ∇Bdrift⋅db̂dt
-    #dRperpdt = b̂/B × (-c*E⃗ + μ*c/q * ∇B) #old
-
-    # Compute the velocity
-    dRdt = vparal*b̂ + dRperpdt
-    
-    # How to store the perpendicular velocity? Would need to know b̂ at
-    #   each R calculate vperp at each R. Could be interesting to store this
-    #   as an auxiliary variable somehow, to se how the drift evolves.
-    dsdt = [dRdt; dvparaldt]
-    return dsdt
-end # function GCA
-
-
-struct LorentzForce
 end
-function (lf::LorentzForce)(du, u, p, _)
-    q, m, B_itp, E_itp = p
+    
+
+"""
+    lorentzforce(du, u, p, _)
+Equations of motion described by the Lorentz Force in 3 dimensions. The 
+parameters `p` contains the charge and mass of the particle, and an 
+interpolation functor giving the magnetic and electric field by passing the 
+position coordinates.
+"""
+function lorentzforce(du, u, p, _)
+    q, m, field_itp = p
     x = u[1:3] # The position vector
     v = u[4:6] # The velocity vector
-    B = B_itp(x...)
-    E = E_itp(x...)
+    fields = field_itp(x...)
+    B = fields[1:3]
+    E = fields[4:6]
     dvdt = q/m * (E + v × B) 
     dxdt = v
     du[:] = [dxdt; dvdt]
 end
-
-
-struct GCA
+function lorentzforce(u, p, _)
+    q, m, field_itp = p
+    x = u[1:3] # The position vector
+    v = u[4:6] # The velocity vector
+    fields = field_itp(x...)
+    B = fields[1:3]
+    E = fields[4:6]
+    dvdt = q/m * (E + v × B) 
+    dxdt = v
+    return [dxdt; dvdt]
 end
-function (gca::GCA)(du, u, p, _)
+
+
+"""
+    gca(du, u, p, _)
+The equations of motion of a charged particle in collisionless plasma under 
+the guiding centre approximation (GCA). Compared to the full motion (described 
+by the Lorentz force), the statevector `u` is reduced from 6 DoF to 4, namely 
+the guiding centre position and the guiding centre velocity parallel to the 
+magnetic field, `[Rx, Ry, Rz, vparal]`, respectively.
+
+The parameters `p` are the particle charge, mass and magnetic moment (which is 
+assumed to be constant in the GCA), along with the interpolation functor 
+from Interpolations.jl giving the magnetic and electric field at an arbitrary 
+position. The functor should give a 6-component vector, where the first 3 
+components represents the magnetic field and the last 3 the electric field.
+
+The function uses ForwardDiff and Interpolations to calculate gradients.
+"""
+function gca(du, u, p, _)
     R = u[1:3]
     vparal = u[4] # Particle velocity parallel to the magnetic field
     # Extract parameters
-    q, m, μ, B_itp, E_itp, gradB_itp, gradb_itp, gradExB_itp = p
-    # Use the gyrocentre position interpolate the vectors, matrices and
+    q, m, μ, fields_itp = p
+    q_inv = 1/q # Inverse of q - to replace division with multiplication
+    # Use the gyrocentre position interpolate the vectors
     # scalars from the interpolation objects.
-    B_vec = B_itp(R...)
-    E_vec = E_itp(R...)
-    gradB_vec = gradB_itp(R...)
-    gradb = gradb_itp(R...)
-    gradExB = gradExB_itp(R...)
+    fields = fields_itp(R...)
+    B_vec = fields[1:3]
+    E_vec = fields[4:6]
     B = norm(B_vec)   # The magnetic field strength
-    b_vec = B_vec/B       # An unit vector pointing in the direction of the
-                       #  magnetic field
+    B_inv = 1/B       # Inverse of B - to replace divition with multiplication
+    b = B_vec*B_inv   # An unit vector pointing in the direction of the
+                      #  magnetic field
+    ExBdrift = (E_vec × b)/B # The E cross B-drift
+
+    # Calculate the gradient of the magnetic field strength
+    ∇B = ForwardDiff.gradient(R) do x
+        norm(fields_itp(x...)[1:3])
+    end
+    #
+    # Calculate the gradient of the magnetic field direction
+    #____
+    # The following two lines is according to a @Benchmark test with 201^3 
+    # grid points 1.17 faster than the ForwardDiff.jacobian method (commented 
+    # below). The results of both methods where exactly the same.  
+    #
+    # Edit: B_itp replaced by field_itp, which means that calculating the 
+    # gradient also gives the jacobian matric of the electric field at the same
+    # time. Will save time in total but this step might take som extra time.
+    #
+    #∇b = ForwardDiff.jacobian(R) do x
+    #    B_vec = B_itp(x...)
+    #    return B_vec/norm(B_vec)
+    #end
+    #____
+    jacobian_matrix = stack(Interpolations.gradient(fields_itp, R...))
+    ∇B_vec = jacobian_matrix[1:3,:]
+    ∇b = (∇B_vec - b * ∇B')*B_inv
+    #
+    # Calculate the Jacobian matrix of the ExB-drift
+    #____ 
+    # The following five lines is according to a @Benchmark test with 201^3
+    # grid points 1.53 faster than the ForwardDiff.jacobian method (commented 
+    #  below). The results of both methods where exactly the same.  
+    #ForwardDiff.jacobian(R) do x
+    #    B_vec = B_vec(x...)
+    #    E_vec = E_vec(x...)
+    #    return (E_vec × B_vec)/(norm(B_vec)^2)
+    #end
+    #____
+    ∇E_vec = jacobian_matrix[4:6,:]
+    skewE = skewsymmetric_matrix(E_vec)
+    skewb = skewsymmetric_matrix(b)
+    ∇ExB = (-skewb*∇E_vec + skewE*∇b - ExBdrift * ∇B')*B_inv
+
     # Electric field component parallel to the magnetic field
-    Eparal = E_vec⋅b_vec
+    Eparal = E_vec⋅b
     # Calculate drifts
-    ExBdrift = (E_vec × b_vec)/B
-    ∇Bdrift = μ/(q*B)*(b_vec × gradB_vec)
+    ∇Bdrift = q_inv*B_inv*μ*(b × ∇B)
     # Total time derivatives. Assumes ∂/∂t = 0,
-    dbdt = vparal * (gradb * b_vec) + gradb*ExBdrift
-    dExBdt = vparal * (gradExB * b_vec) + gradExB*ExBdrift
+    dbdt = vparal * (∇b * b) + ∇b*ExBdrift
+    dExBdt = vparal * (∇ExB * b) + ∇ExB*ExBdrift
     
     # Compute the perpendicular velcoity
-    dRperpdt = ExBdrift + ∇Bdrift + m*b_vec/(q*B) × (vparal*dbdt + dExBdt)
+    dRperpdt = ExBdrift + ∇Bdrift + q_inv*B_inv*m*b × (vparal*dbdt + dExBdt)
     #dRperpdt = b̂/B × (-E⃗ + μ/q*∇B + m/q*(vparal*db̂dt + dExBdt))  # old
 
     # Compute the acceleration 
-    dvparaldt = (q*Eparal - μ*b_vec⋅gradB_vec)/m # along the magnetic field lines
+    dvparaldt = (q*Eparal - μ*b⋅∇B)/m # along the magnetic field lines
     # With correction proposed by Birn et al., 2004:
     #dvparaldt = (q*Eparal - μ*b̂⋅∇B)/m + ExBdrift⋅db̂dt + ∇Bdrift⋅db̂dt
     #dRperpdt = b̂/B × (-c*E⃗ + μ*c/q * ∇B) #old
 
     # Compute the velocity
-    dRdt = vparal*b_vec+ dRperpdt
+    dRdt = vparal*b + dRperpdt
+    
+    # How to store the perpendicular velocity? Would need to know b̂ at
+    #   each R calculate vperp at each R. Could be interesting to store this
+    #   as an auxiliary variable somehow, to se how the drift evolves.
+    du[:] = [dRdt; dvparaldt]
+end
+
+"""
+    gca_2Dxz(du, u, p, _)
+The equations of motion of a charged particle in collisionless plasma under 
+the guiding centre approximation (GCA) in 2.5D xz-plane. Compared to the full 
+motion (described by the Lorentz force), the statevector `u` is reduced from 6 
+DoF to 4, namely the guiding centre position and the guiding centre velocity 
+parallel to the magnetic field, `[Rx, Ry, Rz, vparal]`, respectively. In 
+practice, `Ry` is necessary.
+
+The parameters `p` are the particle charge, mass and magnetic moment (which is 
+assumed to be constant in the GCA), along with the interpolation functor 
+from Interpolations.jl giving the magnetic and electric field at an arbitrary 
+position. The functor should give a 6-component vector, where the first 3 
+components represents the magnetic field and the last 3 the electric field.
+
+The function uses ForwardDiff and Interpolations to calculate gradients.
+"""
+
+function GCA_2Dxz(du, u, p, _)
+    # NOTE: Comments are copied from 3D implementation. Running times are
+    # not correct in this case since this is 2D version.
+    #
+    Rx, Rz = u[1], u[3]
+    vparal = u[4] # Particle velocity parallel to the magnetic field
+    # Extract parameters
+    q, m, μ, fields_itp = p
+    q_inv = 1/q # Inverse of q - to replace division with multiplication
+    # Use the gyrocentre position interpolate the vectors
+    # scalars from the interpolation objects.
+    fields = fields_itp(Rx, Rz)
+    B_vec = fields[1:3]
+    E_vec = fields[4:6]
+    B = norm(B_vec)   # The magnetic field strength
+    B_inv = 1/B       # Inverse of B - to replace divition with multiplication
+    b = B_vec*B_inv   # An unit vector pointing in the direction of the
+                      #  magnetic field
+    ExBdrift = (E_vec × b)/B # The E cross B-drift
+
+    # Calculate the gradient of the magnetic field strength
+    ∇B = ForwardDiff.gradient([Rx, Rz]) do x
+        norm(fields_itp(x...)[1:3])
+    end
+    ∇B = [∇B[1], 0f0, ∇B[2]]
+    #
+    # Calculate the gradient of the magnetic field direction
+    #____
+    # The following two lines is according to a @Benchmark test with 201^3 
+    # grid points 1.17 faster than the ForwardDiff.jacobian method (commented 
+    # below). The results of both methods where exactly the same.  
+    #
+    # Edit: B_itp replaced by field_itp, which means that calculating the 
+    # gradient also gives the jacobian matric of the electric field at the same
+    # time. Will save time in total but this step might take som extra time.
+    #
+    #∇b = ForwardDiff.jacobian(R) do x
+    #    B_vec = B_itp(x...)
+    #    return B_vec/norm(B_vec)
+    #end
+    #____
+    jacobian_matrix = stack(Interpolations.gradient(fields_itp, Rx, Rz))
+    # Add zeros-column representing derivatives along the y-axis
+    jacobian_matrix = [
+        jacobian_matrix[:,1];;
+        zeros(typeof(Rx), 6);; 
+        jacobian_matrix[:,2]
+        ]
+    ∇B_vec = jacobian_matrix[1:3,:]
+    ∇b = (∇B_vec - b * ∇B')*B_inv
+    #
+    # Calculate the Jacobian matrix of the ExB-drift
+    #____ 
+    # The following five lines is according to a @Benchmark test with 201^3
+    # grid points 1.53 faster than the ForwardDiff.jacobian method (commented 
+    #  below). The results of both methods where exactly the same.  
+    #ForwardDiff.jacobian(R) do x
+    #    B_vec = B_vec(x...)
+    #    E_vec = E_vec(x...)
+    #    return (E_vec × B_vec)/(norm(B_vec)^2)
+    #end
+    #____
+    ∇E_vec = jacobian_matrix[4:6,:]
+    skewE = skewsymmetric_matrix(E_vec)
+    skewb = skewsymmetric_matrix(b)
+    ∇ExB = (-skewb*∇E_vec + skewE*∇b - ExBdrift * ∇B')*B_inv
+
+    # Electric field component parallel to the magnetic field
+    Eparal = E_vec⋅b
+    # Calculate drifts
+    ∇Bdrift = q_inv*B_inv*μ*(b × ∇B)
+    # Total time derivatives. Assumes ∂/∂t = 0,
+    dbdt = vparal * (∇b * b) + ∇b*ExBdrift
+    dExBdt = vparal * (∇ExB * b) + ∇ExB*ExBdrift
+    
+    # Compute the perpendicular velcoity
+    dRperpdt = ExBdrift + ∇Bdrift + q_inv*B_inv*m*b × (vparal*dbdt + dExBdt)
+    #dRperpdt = b̂/B × (-E⃗ + μ/q*∇B + m/q*(vparal*db̂dt + dExBdt))  # old
+
+    # Compute the acceleration 
+    dvparaldt = (q*Eparal - μ*b⋅∇B)/m # along the magnetic field lines
+    # With correction proposed by Birn et al., 2004:
+    #dvparaldt = (q*Eparal - μ*b̂⋅∇B)/m + ExBdrift⋅db̂dt + ∇Bdrift⋅db̂dt
+    #dRperpdt = b̂/B × (-c*E⃗ + μ*c/q * ∇B) #old
+
+    # Compute the velocity
+    dRdt = vparal*b + dRperpdt
     
     # How to store the perpendicular velocity? Would need to know b̂ at
     #   each R calculate vperp at each R. Could be interesting to store this
@@ -367,107 +287,12 @@ function (gca::GCA)(du, u, p, _)
 end
 
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Stochastic differential equations
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-struct ConstantAdvection
-end
-function (eom::ConstantAdvection)(du, _, p, _)
-    du .= p
-end
-function (eom::ConstantAdvection)(_, p, _)
-    return p
-end
-
-struct ConstantDiffusion
-end
-function (eom::ConstantDiffusion)(du, _, p, _)
-    du .= p
-end
-function (eom::ConstantDiffusion)(_, p, _)
-    return p
-end
-
-struct ProportionalAdvection
-end
-function (eom::ProportionalAdvection)(du, u, p, _)
-    du .= p*u
-end
-function (eom::ProportionalAdvection)(u, p, _)
-    return p*u
-end
-
-struct ProportionalDiffusion
-end
-function (eom::ProportionalDiffusion)(du, u, p, _)
-    du .= p*u
-end
-function (eom::ProportionalDiffusion)(u, p, _)
-    return p*u
-end
-
-struct DuffingVanDerPolOscillatorDrift
-end
-function (eom::DuffingVanDerPolOscillatorDrift)(du, u, p, _)
-    X, V = u
-    dXdt = V
-    dVdt = (X*(p - X^2) - V)
-    du .= [dXdt; dVdt]
-end
-function (eom::DuffingVanDerPolOscillatorDrift)(u, p, _)
-    X, V = u
-    dXdt = V
-    dVdt = (X*(p - X^2) - V)
-    return [dXdt; dVdt]
-end
-
-struct DuffingVanDerPolOscillatorDiffusion
-end
-function (eom::DuffingVanDerPolOscillatorDiffusion)(du, u, p, _)
-    X, _ = u
-    dXdW = 0.0
-    dVdW = p*X
-    du .= [dXdW; dVdW]
-end
-function (eom::DuffingVanDerPolOscillatorDiffusion)(u, p, _)
-    X, _ = u
-    dXdW = 0.0
-    dVdW = p*X
-    return [dXdW; dVdW]
-end
-
-struct OrnsteinUhlenbeckDrift
-end
-function (eom::OrnsteinUhlenbeckDrift)(du, u, p, _)
-    _, V = u
-    dXdt = V
-    dVdt = -V/p
-    du .= [dXdt, dVdt]
-end
-function (eom::OrnsteinUhlenbeckDrift)(u, p, _)
-    _, V = u
-    dXdt = V
-    dVdt = -V/p
-    return [dXdt, dVdt]
-end
-
-struct OrnsteinUhlenbeckDiffusion
-end
-function (eom::OrnsteinUhlenbeckDiffusion)(du, _, p, _)
-    dXdW = 0.0
-    dVdW = p
-    du .= [dXdW, dVdW]
-end
-function (eom::OrnsteinUhlenbeckDiffusion)(_, p, _)
-    dXdW = 0.0
-    dVdW = p
-    return [dXdW, dVdW]
-end
-
-struct GCAPitchAngleFriction
-end
-function (eom::GCAPitchAngleFriction)(u, p, _)
+"""
+    gca_highmemory(u, p, _)
+Same as @gca, does not calculate gradients on the fly. Uses interpolation 
+and gradients stored in memory instead.
+"""
+function gca_highmemory(u, p, _)
     R = u[1:3]    # Position of the gyrocentre
     vparal = u[4] # Particle velocity parallel to the magnetic field
     beta = u[5]   # Cosine of pitch angle
@@ -475,30 +300,27 @@ function (eom::GCAPitchAngleFriction)(u, p, _)
     # Extract parameters:
     #
     # Particle charge and particle mass and the Coulomb logarithm
-    q, m, kf = p[1:3]
-    # interpolation objects of
+    q, m, mu = p[1:3]
+    # interpolation object for:
     # the magnetic vector field, the electric vector field, the magnetic
     # gradient vector field, the gradient of the magnetic direction
-    # (a 3rd order tensor field), the gradient of the ExB-drift (a 3rd
-    # order tensor field), the number density of electrons (a scalar
-    # field), and the temperature (a scalar field)
-    B_itp, E_itp, gradB_itp, gradb_itp, gradExB_itp, n_itp, T_itp = p[4:10]
+    # (a 3rd order tensor field) and the gradient of the ExB-drift (a 3rd
+    # order tensor field) 
+    field_itp = p[4]
+    fields = field_itp(R...)
 
     # Use the gyrocentre position interpolate the vectors, matrices and
     # scalars from the interpolation objects.
-    B_vec = B_itp(R...)
-    E_vec = E_itp(R...)
-    gradB_vec = gradB_itp(R...)
-    gradb = gradb_itp(R...)
-    gradExB = gradExB_itp(R...)
-    n = n_itp(R...)
-    T = T_itp(R...)
+    B_vec = fields[1:3]
+    E_vec = fields[4:6]
+    gradB_vec = fields[7:9]
+    gradb = fields[10:18]
+    gradExB = fields[19:27]
 
     # Calculate some quantities
     B = norm(B_vec)   # The magnetic field strength
     b_vec = B_vec/B   # An unit vector pointing in the direction of the
                       #  magnetic field
-    mu = m*vparal^2/2B*(1/beta^2 - 1) # The magnetic moment
     Eparal = E_vec⋅b_vec # Electric field component parallel to the
                          # magnetic field
 
@@ -528,6 +350,178 @@ function (eom::GCAPitchAngleFriction)(u, p, _)
     # Compute the pitch angle rate of change
     dbetadt = (1/vparal*dvparaldt - 1/2B*dBdt)*beta*(1-beta^2)
 
+    # Update the statevector
+    return [dRdt; dvparaldt; dbetadt] 
+
+end
+
+
+"""
+The following EoMs where constructed for use in an introductory course in 
+numerical solutions to stochastic differential equations.
+"""
+
+function constantchange(du, _, p, _)
+    du .= p
+end
+function constantchange(_, p, _)
+    return p
+end
+
+function proportionalchange(du, u, p, _)
+    du .= p*u
+end
+function proportionalchange(u, p, _)
+    return p*u
+end
+
+function duffingvanderpoloscillator_drift(du, u, p, _)
+    X, V = u
+    dXdt = V
+    dVdt = (X*(p - X^2) - V)
+    du .= [dXdt; dVdt]
+end
+function duffingvanderpoloscillator_drift(u, p, _)
+    X, V = u
+    dXdt = V
+    dVdt = (X*(p - X^2) - V)
+    return [dXdt; dVdt]
+end
+
+function duffingvanderpoloscillator_diffusion(du, u, p, _)
+    X, _ = u
+    dXdW = 0.0
+    dVdW = p*X
+    du .= [dXdW; dVdW]
+end
+function duffingvanderpoloscillator_diffusion(u, p, _)
+    X, _ = u
+    dXdW = 0.0
+    dVdW = p*X
+    return [dXdW; dVdW]
+end
+
+function ornsteinuhlenbeck_drift(du, u, p, _)
+    _, V = u
+    dXdt = V
+    dVdt = -V/p
+    du .= [dXdt, dVdt]
+end
+function ornsteinuhlenbeck_drift(u, p, _)
+    _, V = u
+    dXdt = V
+    dVdt = -V/p
+    return [dXdt, dVdt]
+end
+
+function ornsteinuhlenbeck_diffusion(du, _, p, _)
+    dXdW = 0.0
+    dVdW = p
+    du .= [dXdW, dVdW]
+end
+function ornsteinuhlenbeck_diffusion(_, p, _)
+    dXdW = 0.0
+    dVdW = p
+    return [dXdW, dVdW]
+end
+
+
+function GCAPitchAngleFriction_lowmemory_2Dxz(u, p, _)
+    # NOTE: Comments are copied from 3D implementation. Running times are
+    # not correct in this case since this is 2D version.
+    #
+    Rx, Rz = u[1], u[3]
+    vparal = u[4] # Particle velocity parallel to the magnetic field
+    beta = u[5]   # Cosine of pitch angle
+    # Extract parameters
+    q, m, kf, fields_itp = p
+    q_inv = 1/q # Inverse of q - to replace division with multiplication
+    # Use the gyrocentre position interpolate the vectors
+    # scalars from the interpolation objects.
+    fields = fields_itp(Rx, Rz)
+    B_vec = fields[1:3]
+    E_vec = fields[4:6]
+    n = fields[7] # Numver density
+    T = fields[8] # gas temperature
+    B = norm(B_vec)   # The magnetic field strength
+    B_inv = 1/B       # Inverse of B - to replace divition with multiplication
+    b = B_vec*B_inv   # An unit vector pointing in the direction of the
+                      #  magnetic field
+    ExBdrift = (E_vec × b)/B # The E cross B-drift
+    μ = m*vparal^2/2B*(1/beta^2 - 1) # The magnetic moment
+
+    # Calculate the gradient of the magnetic field strength
+    ∇B = ForwardDiff.gradient([Rx, Rz]) do x
+        norm(fields_itp(x...)[1:3])
+    end
+    ∇B = [∇B[1], 0f0, ∇B[2]]
+    #
+    # Calculate the gradient of the magnetic field direction
+    #____
+    # The following two lines is according to a @Benchmark test with 201^3 
+    # grid points 1.17 faster than the ForwardDiff.jacobian method (commented 
+    # below). The results of both methods where exactly the same.  
+    #
+    # Edit: B_itp replaced by field_itp, which means that calculating the 
+    # gradient also gives the jacobian matric of the electric field at the same
+    # time. Will save time in total but this step might take som extra time.
+    #
+    #∇b = ForwardDiff.jacobian(R) do x
+    #    B_vec = B_itp(x...)
+    #    return B_vec/norm(B_vec)
+    #end
+    #____
+    jacobian_matrix = stack(Interpolations.gradient(fields_itp, Rx, Rz))
+    # Add zeros-column representing derivatives along the y-axis
+    jacobian_matrix = [
+        jacobian_matrix[1:6,1];;
+        zeros(typeof(Rx), 6);; 
+        jacobian_matrix[1:6,2]
+        ]
+    ∇B_vec = jacobian_matrix[1:3,:]
+    ∇b = (∇B_vec - b * ∇B')*B_inv
+    #
+    # Calculate the Jacobian matrix of the ExB-drift
+    #____ 
+    # The following five lines is according to a @Benchmark test with 201^3
+    # grid points 1.53 faster than the ForwardDiff.jacobian method (commented 
+    #  below). The results of both methods where exactly the same.  
+    #ForwardDiff.jacobian(R) do x
+    #    B_vec = B_vec(x...)
+    #    E_vec = E_vec(x...)
+    #    return (E_vec × B_vec)/(norm(B_vec)^2)
+    #end
+    #____
+    ∇E_vec = jacobian_matrix[4:6,:]
+    skewE = skewsymmetric_matrix(E_vec)
+    skewb = skewsymmetric_matrix(b)
+    ∇ExB = (-skewb*∇E_vec + skewE*∇b - ExBdrift * ∇B')*B_inv
+
+    # Electric field component parallel to the magnetic field
+    Eparal = E_vec⋅b
+    # Calculate drifts
+    ∇Bdrift = q_inv*B_inv*μ*(b × ∇B)
+    # Total time derivatives. Assumes ∂/∂t = 0,
+    dBdt = vparal * b ⋅ ∇B + ExBdrift ⋅ ∇B
+    dbdt = vparal * (∇b * b) + ∇b*ExBdrift
+    dExBdt = vparal * (∇ExB * b) + ∇ExB*ExBdrift
+    
+    # Compute the perpendicular velcoity
+    dRperpdt = ExBdrift + ∇Bdrift + q_inv*B_inv*m*b × (vparal*dbdt + dExBdt)
+    #dRperpdt = b̂/B × (-E⃗ + μ/q*∇B + m/q*(vparal*db̂dt + dExBdt))  # old
+
+    # Compute the acceleration 
+    dvparaldt = (q*Eparal - μ*b⋅∇B)/m # along the magnetic field lines
+    # With correction proposed by Birn et al., 2004:
+    #dvparaldt = (q*Eparal - μ*b̂⋅∇B)/m + ExBdrift⋅db̂dt + ∇Bdrift⋅db̂dt
+    #dRperpdt = b̂/B × (-c*E⃗ + μ*c/q * ∇B) #old
+
+    # Compute the velocity
+    dRdt = vparal*b + dRperpdt
+
+    # Compute the pitch angle rate of change
+    dbetadt = (1/vparal*dvparaldt - 1/2B*dBdt)*beta*(1-beta^2)
+
     # Compute the electron collision frequency
     coulomb_logarithm = 0.0
     eta = kf*2.91 * n[1] * coulomb_logarithm * T[1]^(-1.5)
@@ -536,23 +530,22 @@ function (eom::GCAPitchAngleFriction)(u, p, _)
 
     # Update the statevector
     return [dRdt; dvparaldt; dbetadt + beta_friction] 
-
 end
 
-struct GCAPitchAngleDiffusion
-end
-function (eom::GCAPitchAngleDiffusion)(u, params, _)
-    R = u[1:3]    # Position of the gyrocentre
+
+function GCAPitchAngleDiffusion_lowmemory_2Dxz(u, params, _)
+    Rx, Rz = u[1], u[3]    # Position of the gyrocentre
     beta = u[5]   # Cosine of pitch angle
 
     # Extract parameters
     # coulomb logarithm
     kd = params[3]
-    # number density and temperature interpolation objects
-    n_itp, T_itp = params[9:10]
+    # interpolation-object to get number density and gas temperature
+    fields_itp = params[4]
     # Interpolate density to guiding centre location
-    n = n_itp(R...)
-    T = T_itp(R...)
+    fields = fields_itp(Rx, Rz) 
+    n = fields[7]
+    T = fields[8]
 
     # Compute the electron collision frequency
     coulomb_logarithm = 20
