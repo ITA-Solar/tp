@@ -3,6 +3,57 @@
 #
 
 """
+    kineticenergy(velocity, mass)
+Return the kinetic energy of a particle with `velocity` and `mass`.
+"""
+function kineticenergy(velocity, mass)
+    0.5*mass*v^2
+end
+function kineticenergy(velocity::Vector{<:Vector}, mass)
+   kineticenergy.(norm.(velocity), mass)
+end
+
+"""
+    perpendicular_velocity(
+    magnetic_moment,
+    mass,
+    magneticfieldstrength::Real
+    )
+"""
+function perpendicular_velocity(
+    magnetic_moment,
+    mass,
+    magneticfieldstrength::Real
+    )
+    sqrt(2magnetic_moment*magneticfieldstrength/mass)
+end
+function perpendicular_velocity(
+    magnetic_moment,
+    mass,
+    magneticfield::Vector{<:Real},
+    )
+    perpendicular_velocity(magnetic_moment, mass, norm(magneticfield))
+end
+function perpendicular_velocity(
+    magnetic_moment,
+    mass,
+    magneticfield_itp::AbstractInterpolation,
+    x::Real,
+    y::Real,
+    z::Real
+    )
+    perpendicular_velocity(magnetic_moment, mass, magneticfield_itp(x,y,z))
+end
+
+"""
+    magneticmoment()
+"""
+function magneticmoment(perpendicular_velocity, mass, magneticfieldstrength)
+    0.5mass*perpendicular_velocity^2/magneticfieldstrength
+end
+
+
+"""
     get_guidingcentre(
         pos          ::Vector{<:Real},
         vel          ::Vector{<:Real},
@@ -32,7 +83,7 @@ function get_guidingcentre(
     vparal = vel ⋅ b_vec
     # Calculate mangetic moment -- mu
     vperp = vel_in_E_frame - vparal*b_vec
-    mu = mass*norm(vperp)^2/(2B)
+    mu = magneticmoment(norm(vperp), mass, B)
     return R, vparal, mu
 end
 
@@ -151,4 +202,3 @@ function fadeevEquilibrium(
     return (xx, yy, zz), (dx, dy, dz), A
     
 end # function FadeevEquilibrium
-
