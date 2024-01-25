@@ -1,55 +1,112 @@
 # Created 15.01.24 by eilfso
 #
 #
+#-------------------------------------------------------------------------------
+# Created 15.01.24
+# Author: e.s.oyre@astro.uio.no
+#-------------------------------------------------------------------------------
+#
+#                physics.jl
+#
+#-------------------------------------------------------------------------------
+#  Contains physics of charge particles in plasma.
+#-------------------------------------------------------------------------------
+
 
 """
     kineticenergy(velocity, mass)
 Return the kinetic energy of a particle with `velocity` and `mass`.
 """
 function kineticenergy(velocity, mass)
-    0.5*mass*v^2
+    0.5*mass*velocity^2
 end
+
+
+"""
+    kineticenergy(velocity::Vector{<:Vector}, mass)
+Return the kinetic energy of a particle given the velocity *vector* and mass.
+"""
 function kineticenergy(velocity::Vector{<:Vector}, mass)
    kineticenergy.(norm.(velocity), mass)
 end
 
-"""
-    perpendicular_velocity(
-    magnetic_moment,
-    mass,
-    magneticfieldstrength::Real
-    )
-"""
-function perpendicular_velocity(
-    magnetic_moment,
-    mass,
-    magneticfieldstrength::Real
-    )
-    sqrt(2magnetic_moment*magneticfieldstrength/mass)
-end
-function perpendicular_velocity(
-    magnetic_moment,
-    mass,
-    magneticfield::Vector{<:Real},
-    )
-    perpendicular_velocity(magnetic_moment, mass, norm(magneticfield))
-end
-function perpendicular_velocity(
-    magnetic_moment,
-    mass,
-    magneticfield_itp::AbstractInterpolation,
-    x::Real,
-    y::Real,
-    z::Real
-    )
-    perpendicular_velocity(magnetic_moment, mass, magneticfield_itp(x,y,z))
-end
 
 """
-    magneticmoment()
+    kineticenergy(
+        parallel_velocity::Vector{<:Real},
+        magnetic_moment  ::Vector{<:Real},
+        mass             ::Real,
+        magneticfield    ::Vector{<:Real},
+        electricfield    ::Vector{<:Real}
+        )
+Return the kinetic energy of charged particle given the `parallel_velocity` of
+its *guiding centre*, its `magnetic_moment`, `mass`, and the external
+electromagnetic field.
+"""
+function kineticenergy(
+    parallel_velocity::Vector{<:Real},
+    magnetic_moment  ::Vector{<:Real},
+    mass             ::Real,
+    magneticfield    ::Vector{<:Real},
+    electricfield    ::Vector{<:Real}
+    )
+    v_exb, B, _ = exbdrift(magneticfield, electricfield)
+    # Add more drifts if relevant
+    vperp = perpendicular_velocity(magnetic_moment, mass, B)
+    return 0.5mass*(vperp + parallel_velocity + norm(v_exb))^2
+end
+
+
+"""
+    perpendicular_velocity(magnetic_moment, mass, magneticfieldstrength)
+Return the perpendicular velocity of a charged particle in a magnetic field.
+"""
+function perpendicular_velocity(magnetic_moment, mass, magneticfieldstrength)
+    sqrt(2magnetic_moment*magneticfieldstrength/mass)
+end
+
+
+"""
+    magneticmoment(perpendicular_velocity, mass, magneticfieldstrength)
+Return the magnetic moment of a chargred particle in a magnetic field.
 """
 function magneticmoment(perpendicular_velocity, mass, magneticfieldstrength)
     0.5mass*perpendicular_velocity^2/magneticfieldstrength
+end
+
+
+"""
+    exbdrift(magneticfield::Vector{<:Real}, electricfield::Vector{<:Real})
+Calculate the E cross B drift in a given electromagnetic field. Also return
+the magnetic field strength and mangnetic field direction.
+"""
+function exbdrift(magneticfield::Vector{<:Real}, electricfield::Vector{<:Real})
+    B = norm(magneticfield) # Magnetic field strength
+    b = magneticfield/B     # Magnetic field direction (unit vector)
+    return (electricfield × b)/B, B, b
+end
+
+
+"""
+    gradbdrift(
+        b ::Vector{<:Real},
+        ∇B::Vector{<:Real},
+        B ::Real,
+        μ ::Real,
+        q ::Real,
+        )
+Calculate the ∇B-drift given the magnetic field strength `B`, the magnetic
+field direction `b` (a unit vector), the gradient of the magnetic field
+strength `∇B`, particle charge `q` and magnetic moment `μ`.
+"""
+function gradbdrift(
+    ̂b ::Vector{<:Real},
+    ∇B::Vector{<:Real},
+    B ::Real,
+    μ ::Real,
+    q ::Real,
+    )
+    μ/(q*B)*(b × ∇B)
 end
 
 
@@ -73,9 +130,7 @@ function get_guidingcentre(
     charge       ::Real,
     mass         ::Real
     )
-    B = norm(magneticfield) # Magnetic field strength
-    b_vec = magneticfield/B
-    ExBdrift =  (electricfield × b_vec)/B
+    ExBdrift, B, b_vec = exbdrift(magneticfield, electricfield)
     vel_in_E_frame = vel - ExBdrift
     # Calculate the guiding centre posistion 
     R = pos - mass/(charge*B) * (vel_in_E_frame × b_vec)
@@ -178,6 +233,16 @@ function magneticdipolefield(
 end
 
 
+"""
+    fadeevEquilibrium(
+        (x0, y0, z0)::Tuple{Real, Real, Real},
+        (xf, yf, zf)::Tuple{Real, Real, Real},
+        (nx, ny, nz)::Tuple{Integer, Integer, Integer},
+        λ           ::Real,
+        ϵ           ::Real,
+        B0          ::Real
+        )
+"""
 function fadeevEquilibrium(
     (x0, y0, z0)::Tuple{Real, Real, Real},
     (xf, yf, zf)::Tuple{Real, Real, Real},
