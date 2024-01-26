@@ -35,8 +35,23 @@ function solve(
         callback = DiscreteTPCallback()
     #     solve_wo_cb(particles, dt, tspan, solver; dW=dW)
     end
+
+    verbose = 1
+    if verbose == 1
+        statement1 = string("tp.jl: Running simulation:\n",
+            "\tnpart:  $(npart)\n",
+            "\tnsteps: $(@sprintf("%.2e", nsteps))\n",
+            "\tdt:     $(dt)\n",
+            "\tNumber of iterations: ",
+            "$(@sprintf("%.2e",npart*nsteps))"
+            )
+        println(statement1)
+    end
+
+    # Loop over particles
     for n = 1:npart
         u[1,:,n] .= ic[n]
+        # Loop over timesteps
         for i = 1:nsteps
             u[i+1,:,n] = u[i,:,n] .+ scheme(
                 u[i,:,n],
