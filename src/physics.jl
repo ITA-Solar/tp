@@ -100,7 +100,7 @@ field direction `b` (a unit vector), the gradient of the magnetic field
 strength `∇B`, particle charge `q` and magnetic moment `μ`.
 """
 function gradbdrift(
-    ̂b ::Vector{<:Real},
+    b ::Vector{<:Real},
     ∇B::Vector{<:Real},
     B ::Real,
     μ ::Real,
