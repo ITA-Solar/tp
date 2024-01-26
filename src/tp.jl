@@ -11,146 +11,69 @@
 
 module tp
 
-#-------------------------#   
-#  use external libraries # 
-#-------------------------#-----------------------------------------------------
+#---------------#
+#  Use packages #
+#---------------#---------------------------------------------------------------
 using LinearAlgebra
-using Random:           MersenneTwister
-using Printf
+using Random
+
 using DifferentialEquations
+using ForwardDiff
 using Interpolations
+
+using Printf
 using JLD
+
 using Distributed
 
 using BifrostTools
+#-------------------------------------------------------------------------------
 
 """
-Abstract types: Ideas for next version
+Abstract types
 """
-#abstract type AbstractExperiment end
-abstract type AbstractPatch end
 abstract type AbstractMesh end
-abstract type AbstractParticle end
-abstract type TraceParticle <: AbstractParticle end
-abstract type AbstractProblemParameters end
-abstract type AbstractInitialConditions end
-#abstract type AbstractSimulation end
-#abstract type AbstractSolver end
 
-include("utils.jl")
 include("constants.jl")
-# ---
-# Ideas for next version
-#include("problems.jl")
-#include("simulations.jl")
-# --- 
-include("callbacks.jl")
-include("solvers.jl")
-include("meshes.jl")
-include("tp_interpolations.jl") 
-include("particles.jl")
+include("mathematics.jl")
+include("statistics.jl")
+include("physics.jl")
 include("equations_of_motion.jl")
-include("patches.jl")
-include("initial_conditions.jl")
-include("interpolations.jl")
-include("problem_parameters.jl")
-include("solve.jl")
-include("experiments.jl")
-	
-# Exports
-export FOStaticIC, LorentzForce, ODEParticle, 
-        FOParams, GCAParams, GCAStaticIC
-export Patch, run!, update, DEPatch
-export compute_gradients, derivateUpwind, calc_GCA_IC_and_mu
-export DE_init!
-
-export VectorIC, FloatIC, AbstractInitialConditions, AbstractVariableIC
-export PhaseSpace1DIC
-export SingleCoefficientParams
-export DuffingVanDerPolOscillatorDrift, DuffingVanDerPolOscillatorDiffusion
-export OrnsteinUhlenbeckDrift, OrnsteinUhlenbeckDiffusion
-export ConstantAdvection, ConstantDiffusion
-export ProportionalAdvection, ProportionalDiffusion
-export SDEParticle, euler_maruyama, milstein_central
-export solve, solve_stoppingtime
-export DiscreteTPCallback
-export GCAPitchAngleScatteringParams 
-export GCAPitchAngleScatteringIC
-export GCAPitchAngleFriction, GCAPitchAngleDiffusion
-export create_puremesh, get_fields_from_br, tp_get_initial_pos_and_vel!,
-        EMfield_at_pos, calc_GCA_IC_and_mu, pitchangle 
-export save_fast_PAS, tp_load_fast
-export gca
+include("numerical_methods/ode_schemes.jl")
+include("numerical_methods/sde_schemes.jl")
+include("numerical_methods/differentiations.jl")
+include("numerical_methods/interpolations.jl")
+include("solvers.jl")
+include("callbacks.jl")
+include("utils.jl")
+include("io/bifrost_input.jl")
+#include("io/output.jl")
 
 
-# meshes.jl
-export Mesh
-export PureMesh
-export amplifyBfield! # Amplifies the magnetic field of the mesh by a factor
-export amplifyEfield! # Amplifies the elctric field of the mesh by a factor
-# particles.jl
-export get_problem
-export TraceParticle
-export ParticleSoA # Particles represented as struct of arrays
-export GCAParticleSoA
-export specieTable # Maping specie to mass and charge
-export getpos
-export getvel
-export reset!      # Resets particle positions to zero (except initial position)
-export revive!     # Resets particle alive status to true
-export setinitpos! # Sets the initial position of particles
-export setinitvel! # Sets the initial velocity of particles
-export kineticenergy # Computes the non-rel. kinetic energy at all time steps
-export computeμ
-
-# initial_conditions.jl
-export InitialConditions
-
-# utils.jl
-export randn
-export rand
-export initparticlesuniform
-export initparticlesmaxwellian
-export norm4
-export createaxes, discretise!, mirroringfield, dipolefield
-# solvers.jl
-export cross
-export euler, eulerCromer, rk4
-export curl, normal3Donlyz, derivateCentral
+#---------#
+# Exports #
+#---------#---------------------------------------------------------------------
+# physics.jl
+export  get_guidingcentre,
+        cosineof_pitchangle,
+        kineticenergy
 # equations_of_motion.jl
-export fullOrbit, relFullOrbitExplLeapFrog, vay, boris, GCA
-# interpolations.jl
-export InterpolateTensor
-# tp_interpolations.jl
-export gridinterp
-export locateCell
-export trilinear
-export trilinearGCA
-export bilinear_xz
-export bilinear_xzGCA
-# experiments.jl
-export Parameters
-export Experiment
-# Init-functions
-export tp_init!
-export tp_reinit_particles!
-# Save/load functions
-export tp_save
-export tp_saveparams
-export tp_savetp
-export tp_savemesh
-export tp_savebg
-export tp_load
-export tp_loadtp
-export tp_loadtp!
-export tp_loadmesh
-export tp_loadbg
-# Run functions
-export tp_run!
-# Set-functions
-export tp_set_dt!
-export tp_set_nsteps!
-export tp_reset!
+export  GCAPitchAngleFriction_lowmemory_2Dxz,
+        GCAPitchAngleDiffusion_lowmemory_2Dxz,
+        lorentzforce
+# numerical_methods/sde_schemes
+export  euler_maruyama,
+        milstein_central
+# solvers.jl
+export  solve,
+        solve_stoppingtime
+# io/bifrost_input.jl
+export  get_br_emfield_interpolator,
+        get_br_emfield_numdensity_gastemp_interpolator,
+        get_br_var_interpolator
+# utils.jl
+export dropdims
 
 
+#-------------------------------------------------------------------------------
 end
