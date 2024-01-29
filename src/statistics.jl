@@ -188,6 +188,22 @@ end # function rand
 #----------#
 # Sampling #
 #----------#--------------------------------------------------------------------
+function maxwellianvelocitysample(
+    rng        ::AbstractRNG,
+    temperature::Any,
+    mass       ::Real,
+    args...
+    ;
+    precision::DataType=Float64,
+    )
+    T = temperature.(args...)
+    μ = 0.0
+    σ = sqrt.(tp.k_B*T/mass) # Standard deviation of the Maxwell
+    # distribution at this temperature
+    return randn.(rng, precision, μ, σ, 3)
+end
+
+
 """
     importancesampling(
         target  ::Function, 
