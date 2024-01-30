@@ -34,6 +34,7 @@ function Base.dropdims(axes::Tuple{Vararg{Vector}})
     return axes[mask]
 end
 
+
 #----------------------------------------#
 # Vector potential generation            #
 # Mesh generation from analytical fields #

@@ -60,9 +60,8 @@ export  get_guidingcentre,
         cosineof_pitchangle,
         kineticenergy
 # equations_of_motion.jl
-export  GCAPitchAngleFriction_lowmemory_2Dxz,
-        GCAPitchAngleDiffusion_lowmemory_2Dxz,
-        lorentzforce
+export  guidingcentreapproximation!,
+        lorentzforce!, lorentzforce
 # statistics.jl
 export  maxwellianvelocitysample
 # numerical_methods/sde_schemes
@@ -76,7 +75,10 @@ export  get_br_emfield_interpolator,
         get_br_emfield_numdensity_gastemp_interpolator,
         get_br_var_interpolator
 # utils.jl
-export dropdims
+export  dropdims,
+        createaxes,
+        discretise!,
+        magneticdipolefield
 
 
 #-------------------------------------------------------------------------------

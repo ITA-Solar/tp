@@ -6,7 +6,7 @@
 #                 equations_of_motion.jl
 #
 #-------------------------------------------------------------------------------
-# Module containing various equations of motion.
+# Contains various equations of motion.
 #-------------------------------------------------------------------------------
 
 """
@@ -44,13 +44,13 @@ end
     
 
 """
-    lorentzforce(du, u, p, _)
+    lorentzforce!(du, u, p, _)
 Equations of motion described by the Lorentz Force in 3 dimensions. The 
 parameters `p` contains the charge and mass of the particle, and an 
 interpolation functor giving the magnetic and electric field by passing the 
 position coordinates.
 """
-function lorentzforce(du, u, p, _)
+function lorentzforce!(du, u, p, _)
     q, m, field_itp = p
     x = u[1:3] # The position vector
     v = u[4:6] # The velocity vector
@@ -75,7 +75,7 @@ end
 
 
 """
-    gca(du, u, p, _)
+    guidingcentreapproximation!(du, u, p, _)
 The equations of motion of a charged particle in collisionless plasma under 
 the guiding centre approximation (GCA). Compared to the full motion (described 
 by the Lorentz force), the statevector `u` is reduced from 6 DoF to 4, namely 
@@ -90,7 +90,7 @@ components represents the magnetic field and the last 3 the electric field.
 
 The function uses ForwardDiff and Interpolations to calculate gradients.
 """
-function gca(du, u, p, _)
+function guidingcentreapproximation!(du, u, p, _)
     R = u[1:3]
     vparal = u[4] # Particle velocity parallel to the magnetic field
     # Extract parameters
@@ -149,7 +149,7 @@ function gca(du, u, p, _)
 
     # Electric field component parallel to the magnetic field
     Eparal = E_vec⋅b
-    # Calculate drifts
+    # Calculate ∇B-drift
     ∇Bdrift = q_inv*B_inv*μ*(b × ∇B)
     # Total time derivatives. Assumes ∂/∂t = 0,
     dbdt = vparal * (∇b * b) + ∇b*ExBdrift
