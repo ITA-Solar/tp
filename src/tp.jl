@@ -61,6 +61,7 @@ export  get_guidingcentre,
         kineticenergy
 # equations_of_motion.jl
 export  guidingcentreapproximation!,
+        gca_2Dxz!,
         lorentzforce!, lorentzforce
 # statistics.jl
 export  maxwellianvelocitysample
@@ -72,6 +73,7 @@ export  solve,
         solve_stoppingtime
 # io/bifrost_input.jl
 export  get_br_emfield_interpolator,
+        get_br_emfield_vecof_interpolators,
         get_br_emfield_numdensity_gastemp_interpolator,
         get_br_var_interpolator
 # utils.jl
