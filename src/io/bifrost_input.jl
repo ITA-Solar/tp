@@ -25,8 +25,11 @@ function get_br_var_interpolator(
     var = dropdims(var)
     br_axes = load_br_axes(expname, snap, expdir)
     br_axes = dropdims(br_axes)
-    var_itp = interpolate(br_axes, var, itp_type)
-    var_itp = extrapolate(var_itp, itp_bc)
+    var_itp = linear_interpolation(
+        br_axes, var, extrapolation_bc=itp_bc
+        )
+    #var_itp = interpolate(br_axes, var, itp_type)
+    #var_itp = extrapolate(var_itp, itp_bc)
     return var_itp
 end
 
@@ -46,14 +49,19 @@ function get_br_emfield_interpolator(
     ey = get_var(expname, snap, expdir, "ey"; units="SI", destagger=true)
     ez = get_var(expname, snap, expdir, "ez"; units="SI", destagger=true)
     #
-    emfield = eachslice([bx;;;; by;;;; bz;;;; ex;;;; ey;;;; ez], dims=(1,2,3))
+    emfield = eachslice(stack([bx, by, bz, ex, ey, ez]), dims=(1,2,3))
+   # nx,ny,nz = size(bx)
+   # emfield = [[bx[i,j,k],by[i,j,k],bz[i,j,k],ex[i,j,k],ey[i,j,k],ez[i,j,k]] for i=1:nx, j = 1:ny, k = 1:nz]
     #
     # Make interpolation-object
-    emfields = dropdims(emfield)
+    emfield = dropdims(emfield)
     br_axes = load_br_axes(expname, snap, expdir)
     br_axes = dropdims(br_axes)
-    emfields_itp = interpolate(br_axes, emfields, itp_type)
-    emfields_itp = extrapolate(emfields_itp, itp_bc)
+    emfields_itp = linear_interpolation(
+        br_axes, emfield, extrapolation_bc=itp_bc
+        )
+    #emfields_itp = interpolate(br_axes, emfield, itp_type)
+    #emfields_itp = extrapolate(emfields_itp, itp_bc)
     #
     return emfields_itp
 end
