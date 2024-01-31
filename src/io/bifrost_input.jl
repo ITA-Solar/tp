@@ -34,6 +34,12 @@ function get_br_var_interpolator(
 end
 
 
+function get_br_emfield_vecof_interpolators(args...; kwargs...)
+    vars = ("bx", "by", "bz", "ex", "ey", "ez")
+    return [get_br_var_interpolator(args..., var; kwargs...) for var in vars]
+end
+
+
 function get_br_emfield_interpolator(
         expname::String,
         snap   ::Integer,
