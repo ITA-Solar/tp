@@ -175,7 +175,7 @@ function guidingcentreapproximation!(du, u, p, _)
 end
 
 """
-    gca_2Dxz(du, u, p, _)
+    gca_2Dxz!(du, u, p, _)
 The equations of motion of a charged particle in collisionless plasma under 
 the guiding centre approximation (GCA) in 2.5D xz-plane. Compared to the full 
 motion (described by the Lorentz force), the statevector `u` is reduced from 6 
@@ -192,20 +192,19 @@ components represents the magnetic field and the last 3 the electric field.
 The function uses ForwardDiff and Interpolations to calculate gradients.
 """
 
-function GCA_2Dxz(du, u, p, _)
+function gca_2Dxz!(du, u, p, _)
     # NOTE: Comments are copied from 3D implementation. Running times are
     # not correct in this case since this is 2D version.
     #
     Rx, Rz = u[1], u[3]
     vparal = u[4] # Particle velocity parallel to the magnetic field
     # Extract parameters
-    q, m, μ, fields_itp = p
+    q, m, μ, itpvec = p
     q_inv = 1/q # Inverse of q - to replace division with multiplication
     # Use the gyrocentre position interpolate the vectors
     # scalars from the interpolation objects.
-    fields = fields_itp(Rx, Rz)
-    B_vec = fields[1:3]
-    E_vec = fields[4:6]
+    B_vec = [itpvec[i](Rx, Rz) for i in 1:3]
+    E_vec = [itpvec[i](Rx, Rz) for i in 4:6]
     B = norm(B_vec)   # The magnetic field strength
     B_inv = 1/B       # Inverse of B - to replace divition with multiplication
     b = B_vec*B_inv   # An unit vector pointing in the direction of the
@@ -214,7 +213,7 @@ function GCA_2Dxz(du, u, p, _)
 
     # Calculate the gradient of the magnetic field strength
     ∇B = ForwardDiff.gradient([Rx, Rz]) do x
-        norm(fields_itp(x...)[1:3])
+        sqrt(itpvec[1](x...)^2 + itpvec[2](x...)^2 + itpvec[3](x...)^2)
     end
     ∇B = [∇B[1], 0f0, ∇B[2]]
     #
@@ -233,7 +232,10 @@ function GCA_2Dxz(du, u, p, _)
     #    return B_vec/norm(B_vec)
     #end
     #____
-    jacobian_matrix = stack(Interpolations.gradient(fields_itp, Rx, Rz))
+    jacobian_matrix = stack(
+        [Interpolations.gradient(itp, Rx, Rz) for itp in itpvec],
+        dims=1
+        )
     # Add zeros-column representing derivatives along the y-axis
     jacobian_matrix = [
         jacobian_matrix[:,1];;
