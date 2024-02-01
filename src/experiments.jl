@@ -482,9 +482,9 @@ function get_mesh_from_br(
     idl_filename = string(basename, "_", params.br_isnap, ".idl")
     mesh_filename = string(basename, ".mesh")
     br_mesh = BifrostMesh(mesh_filename)
-    br_params = br_read_params(idl_filename)
+    br_params = read_params(idl_filename)
     # Scale axes
-    code2cgs_l = params.wp_snap(br_params["u_l"])
+    code2cgs_l = params.wp_snap(parse(Float32, br_params["u_l"]))
     x = code2cgs_l * tp.cgs2SI_l * br_mesh.x
     y = code2cgs_l * tp.cgs2SI_l * br_mesh.y
     z = code2cgs_l * tp.cgs2SI_l * br_mesh.z
@@ -514,15 +514,15 @@ function get_fields_from_br(
 
     #println("tp.jl: Reading Bifrost fields...")
     #println("           Reading parameters from $(basename(idl_filename))")
-    br_params = br_read_params(idl_filename)
+    br_params = read_params(idl_filename)
     #println("           Loading snap       from $(basename(snap_filename))")
-    br_snap = br_load_snapdata(snap_filename, br_params)
+    br_snap = get_snap(snap_filename, br_params)
     #println("           Loading auxiliares from $(basename(aux_filename))")
-    br_aux = br_load_auxdata(aux_filename, br_params)
+    br_aux = get_snap(aux_filename, br_params)
 
-    pbc_x = Bool(br_params["periodic_x"])
-    pbc_y = Bool(br_params["periodic_y"])
-    pbc_z = Bool(br_params["periodic_z"])
+    pbc_x = parse(Bool, br_params["periodic_x"])
+    pbc_y = parse(Bool, br_params["periodic_y"])
+    pbc_z = parse(Bool, br_params["periodic_z"])
     auxes = split(br_params["aux"])
 
     # Check which fields to get. This is not the best way to do it, because 
@@ -575,20 +575,20 @@ function get_fields_from_br(
     # params["u_b"] scales magnetic field from model/code-units to CGS units. 
     # cgs2SI_u scales velocity from CGS-units to SI-units
     # cgs2SI_b scales magnetic field from CGS-units to SI-units
-    code2cgs_u = wfp(br_params["u_u"])
-    code2cgs_b = wfp(br_params["u_B"])
-    code2cgs_l = wfp(br_params["u_l"])
+    code2cgs_u = wfp(parse(Float32, br_params["u_u"]))
+    code2cgs_b = wfp(parse(Float32, br_params["u_B"]))
+    code2cgs_l = wfp(parse(Float32, br_params["u_l"]))
     code2cgs_e = code2cgs_u * code2cgs_b
-    code2cgs_r = wfp(br_params["u_r"])
+    code2cgs_r = wfp(parse(Float32, br_params["u_r"]))
 
     if get_bfield
         # De-stagger and scale magnetic field
         #println("           De-staggering: bx")
-        bx = br_xup(bx_code, pbc_x)
+        bx = xup(bx_code, pbc_x)
         #println("                          by")
-        by = br_yup(by_code, pbc_y)
+        by = yup(by_code, pbc_y)
         #println("                          bz")
-        bz = br_zup(bz_code, pbc_z)
+        bz = zup(bz_code, pbc_z)
         bx *= code2cgs_b 
         by *= code2cgs_b 
         bz *= code2cgs_b 
@@ -601,11 +601,11 @@ function get_fields_from_br(
     if get_efield
         # De-stagger and scale electric field
         #println("                          ex")
-        ex = br_yup(br_zup(ex_code, pbc_z), pbc_y)
+        ex = yup(zup(ex_code, pbc_z), pbc_y)
         #println("                          ey")
-        ey = br_zup(br_xup(ey_code, pbc_x), pbc_z)
+        ey = zup(xup(ey_code, pbc_x), pbc_z)
         #println("                          ez")
-        ez = br_xup(br_yup(ez_code, pbc_y), pbc_x)
+        ez = xup(yup(ez_code, pbc_y), pbc_x)
         ex *= code2cgs_e 
         ey *= code2cgs_e 
         ez *= code2cgs_e 
@@ -793,14 +793,12 @@ function tp_get_initial_pos_and_vel!(
         # Get temperature 
         if params.bg_input == "br"
             # Temperature has code-units equal to Kelvin, no need for scaling.
-            br_temp = dropdims(br_load_auxvariable(params.br_expname,
+            br_temp = get_var(params.br_expname,
                                           [params.br_isnap],
                                           params.br_expdir,
                                           "tg",
                                           params.wp_snap
-                                                   ),
-                               dims=numdims + 1
-                               )
+                                                   )
             #println("           Finding temperatures at initial positions")
             @time for i = 1:params.npart
                 # Interpolate the temperature at the position of the particle
