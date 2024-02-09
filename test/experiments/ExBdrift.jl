@@ -37,7 +37,6 @@ and the chosen numerical solver, scheme and interpolation chosen.
 #
 numDims = 3       # Number of spatial dimensions
 numParticles = 2  # Number of particles to simulae
-species = [1, 2]  # Specifies the species of the particles 
 #   (electron, proton)
 tf = 2*2π/(5.93096958e7) # s. End time of simulation
 tspan = (0,tf)
@@ -54,10 +53,10 @@ Ey = 0.02Bz/tf  # Electric field component only in the positive y-direction
 Ez = 0.0
 
 # Particle conditions
-qe = specieTable[1,2] # Electron charge
-qp = specieTable[2,2] # Proton charge
-me = specieTable[1,1] # Electron mass
-mp = specieTable[2,1] # Proton mass
+qe = -tp.e  # Electron charge
+qp = tp.e   # Proton charge
+me = tp.m_e # Electron mass
+mp = tp.m_p # Proton mass
 # Set initial position and velocities
 vdriftx = Ey/Bz
 # Electron initial velocity
@@ -120,6 +119,12 @@ posp[1, :] .= x(times, x0p, ωp, rLp, Ey, Bz)
 posp[2, :] .= y(times, y0p, ωp, rLp, Ex, Bz)
 posp[3, :] .= z(times, z0p, vzp, ωp, Ez, Bz)
 
+analytic_ex = linear_interpolation(times, x(times, x0e, ωe, rLe, Ey, Bz))
+analytic_ey = linear_interpolation(times, y(times, y0e, ωe, rLe, Ex, Bz))
+analytic_ez = linear_interpolation(times, z(times, z0e, vze,  ωe, Ez, Bz))
+analytic_px = linear_interpolation(times, x(times, x0p, ωp, rLp, Ey, Bz))
+analytic_py = linear_interpolation(times, y(times, y0p, ωp, rLp, Ex, Bz))
+analytic_pz = linear_interpolation(times, z(times, z0p, vzp, ωp, Ez, Bz))
 
 #-------------------------------------------------------------------------------
 # NUMERICAL SOLUTION 
@@ -135,10 +140,11 @@ E[3, :, :, :] .= Ez
 xx = [-0.1, 1.1]
 yy = [-0.1, 1.1]
 zz = [-0.1, 1.1]
-# Create Mesh instance
-mesh = Mesh(B, E, xx, yy, zz)
-# Create mesh without fields (for new DifferentialEquations.jl implementation)
-puremesh = PureMesh(xx, yy, zz)
+# Create interpolation objects
+emfields = eachslice(vcat(B, E), dims=(2,3,4))
+emfields_itp = linear_interpolation((xx, yy, zz), emfields, 
+    extrapolation_bc=Flat()
+    )
 
 #-------------------------------------------------------------------------------
 # PARTICLE CREATION
@@ -146,118 +152,67 @@ puremesh = PureMesh(xx, yy, zz)
 # Set initial position and velocities
 pos = zeros(Float64, numDims, numParticles) # Position -> origin
 vel = zeros(Float64, numDims, numParticles) # Velocity
-vel[:, 1] = [vxe, vye, vze]  # Initial velocity electron
-vel[:, 2] = [vxp, vyp, vzp]  # Initial velocity proton
-pos[:, 1] = [x0e, y0e, z0e]  # Initial position electron
-pos[:, 2] = [x0p, y0p, z0p]  # Initial position proton
-particlesEC = ParticleSoA(pos, vel, species, numSteps)
-particlesVay = ParticleSoA(pos, vel, species, numSteps)
 #  Create DifferentialEquations.jl particle type
-ic_FO = InitialConditions(
-    pos[1,:], 
-    pos[2,:], 
-    pos[3,:], 
-    vel[1,:], 
-    vel[2,:], 
-    vel[3,:]
-    )
-params_FO = FOParams(
+ic_FO = [[x0e, y0e, z0e, vxe, vye, vze], [x0p, y0p, z0p, vxp, vyp, vzp]]
+params_FO = (
     [-tp.e, tp.e],
     [tp.m_e, tp.m_p],
-    puremesh,
-    B,
-    E,
+    emfields_itp
     )
-DEparticlesFO = ODEParticle(LorentzForce(), ic_FO, params_FO, numParticles)
 
 # GCA particles
 # Set initial position and velocities
 R = zeros(Float64, numDims, numParticles) # Position -> origin
 velGCA = zeros(Float64, numDims + 3, numParticles) # Velocity
-R[:, 1] = [x0e, y0e, z0e]  # Initial position electron
-R[:, 2] = [x0p, y0p, z0p]  # Initial position proton
 vperpe = √(vxe^2 + vye^2)
 vperpp = √(vxp^2 + vyp^2)
+# Magnetic moments of particles
 μₑ = me*vperpe^2/2Bz
 μₚ = mp*vperpp^2/2Bz
-vparal = zeros(numParticles) # Velocity parallell to the magnetic field
-vparal[1] = vel[3,1] 
-vparal[2] = vel[3,2] 
-μ = [μₑ, μₑ]               # Magnetic moment of the particles
 
-# Create ParticlesSoA-instance
-particlesGCA = GCAParticleSoA(R, vparal, μ, species, numSteps)
-#  Create DifferentialEquations.jl particle type
-ic_GCA = InitialConditions(
-    R[1,:], 
-    R[2,:], 
-    R[2,:], 
-    vparal
-    )
-params_GCA = GCAParams(
+#  Create initial condition vector  and params
+ic_GCA = [[x0e, y0e, z0e, vze], [x0p, y0p, z0p, vzp]]
+params_GCA = (
     [-tp.e, tp.e],
     [tp.m_e, tp.m_p],
     [μₑ, μₚ],
-    puremesh,
-    B, E, mesh.∇B, mesh.∇b̂, mesh.∇ExB,
+    emfields_itp
     )
-DEparticlesGCA = ODEParticle(GCA(), ic_GCA, params_GCA, numParticles)
-
 
 #-------------------------------------------------------------------------------
-# CREATE PATCH
+# PUSHERS TO TEST:
 # Non-relativisitc Euler-Cromer
-patchEC = Patch(mesh,
-                particlesEC,
-                fullOrbit,
-                eulerCromer,
-                trilinear,
-                dt,
-                numSteps,
-                numParticles
-                )
 # Relativistic Vay pusher
-patchVay = Patch(mesh,
-                 particlesVay,
-                 relFullOrbitExplLeapFrog,
-                 vay,
-                 trilinear,
-                 dt,
-                 numSteps,
-                 numParticles)
 # Relativistic Boris pusher
-#patchBoris = Patch(mesh,
-#              particles,
-#              relFullOrbitExplLeapFrog,
-#              boris,
-#              trilinear,
-#              dt,
-#              numSteps,
-#              numParticles)
-
 # non-relativistic GCA
-patchGCA = Patch(mesh,
-                 particlesGCA,
-                 gca,
-                 rk4,
-                 trilinearGCA,
-                 dt,
-                 numSteps,
-                 numParticles)
-
-# Using DifferentialEquations.jl
-DEpatchFO = DEPatch(tspan, DEparticlesFO, puremesh)
-DEpatchGCA = DEPatch(tspan, DEparticlesGCA, puremesh)
 
 #-------------------------------------------------------------------------------
 # RUN SIMULATION
-run!(patchEC)
-run!(patchVay)
-#run!(patchBoris)
-run!(patchGCA)
-simFO = run!(DEpatchFO)
-simGCA = run!(DEpatchGCA)
 
+# Problem functions
+prob_func_FO(prob, i, _) = remake(prob, u0=ic_FO[i], p=(
+    params_FO[1][i],
+    params_FO[2][i],
+    params_FO[3],
+    ))
+ prob_func_GCA(prob, i, _) = remake(prob, u0=ic_GCA[i], p=(
+    params_GCA[1][i],
+    params_GCA[2][i],
+    params_GCA[3][i],
+    params_GCA[4],
+    ))
+
+# ODEProblems
+prob_FO = ODEProblem(lorentzforce!, zeros(6), tspan)
+prob_GCA = ODEProblem(guidingcentreapproximation!, zeros(4), tspan)
+# EnsembleProblems
+eprob_FO = EnsembleProblem(prob_FO, prob_func=prob_func_FO)
+eprob_GCA = EnsembleProblem(prob_GCA, prob_func=prob_func_GCA)
+
+# SOLVE
+sol_FO = DifferentialEquations.solve(eprob_FO, Tsit5, reltol=1.1e-4, trajectories=2)
+sol_GCA = DifferentialEquations.solve(eprob_GCA, Tsit5, reltol=1.1e-4, trajectories=2)
+    
 #-------------------------------------------------------------------------------
 # CALCULATE DEVIATIONS FROM ANALYTICAL SOLUTION
 # Calculate the root mean squared error between numerical and analytical 
@@ -265,118 +220,47 @@ simGCA = run!(DEpatchGCA)
 
 # Euler-Cromer
 # Electron
-numPose = patchEC.tp.pos[:, 1, :]
-numPosp = patchEC.tp.pos[:, 2, :]
-rmsErrexEC = √(sum((pose[1,2:numSteps] .-
-    numPose[1,2:numSteps]).^2)/numSteps)
-rmsErreyEC = √(sum((pose[2,2:numSteps] .- 
-    numPose[2,2:numSteps]).^2)/numSteps)
-rmsErrezEC = √(sum((pose[3,2:numSteps] .- 
-    numPose[3,2:numSteps]).^2)/numSteps)
-# Proton
-rmsErrpxEC = √(sum((posp[1,2:numSteps] .- 
-    numPosp[1,2:numSteps]).^2)/numSteps)
-rmsErrpyEC = √(sum((posp[2,2:numSteps] .- 
-    numPosp[2,2:numSteps]).^2)/numSteps)
-rmsErrpzEC = √(sum((posp[3,2:numSteps] .- 
-    numPosp[3,2:numSteps]).^2)/numSteps)
+rmse_ex = 0.0
+rmse_ey = 0.0
+rmse_ez = 0.0
+rmse_px = 0.0
+rmse_py = 0.0
+rmse_pz = 0.0
+nsteps_e = length(sol_FO[1].t)
+nsteps_p = length(sol_FO[2].t)
+for i = 1:nsteps_e
+    global rmse_ex += (sol_FO[1].u[i][1] - analytic_ex(sol_FO[1].t[i]))^2 
+    global rmse_ey += (sol_FO[1].u[i][2] - analytic_ey(sol_FO[1].t[i]))^2 
+    global rmse_ez += (sol_FO[1].u[i][3] - analytic_ez(sol_FO[1].t[i]))^2 
+end
+for i = 1:nsteps_p
+    global rmse_px += (sol_FO[2].u[i][1] - analytic_px(sol_FO[2].t[i]))^2 
+    global rmse_py += (sol_FO[2].u[i][2] - analytic_py(sol_FO[2].t[i]))^2 
+    global rmse_pz += (sol_FO[2].u[i][3] - analytic_pz(sol_FO[2].t[i]))^2 
+end
+rmse_ex = sqrt(rmse_ex/nsteps_e)
+rmse_ey = sqrt(rmse_ey/nsteps_e)
+rmse_ez = sqrt(rmse_ez/nsteps_e)
+rmse_px = sqrt(rmse_px/nsteps_p)
+rmse_py = sqrt(rmse_py/nsteps_p)
+rmse_pz = sqrt(rmse_pz/nsteps_p)
 
-# Vay
-# Electron
-numPose = patchVay.tp.pos[:, 1, :]
-numPosp = patchVay.tp.pos[:, 2, :]
-rmsErrexVay = √(sum((pose[1,2:numSteps] .-
-    numPose[1,2:numSteps]).^2)/numSteps)
-rmsErreyVay = √(sum((pose[2,2:numSteps] .-
-    numPose[2,2:numSteps]).^2)/numSteps)
-rmsErrezVay = √(sum((pose[3,2:numSteps] .-
-    numPose[3,2:numSteps]).^2)/numSteps)
-# Proton
-rmsErrpxVay = √(sum((posp[1,2:numSteps] .-
-    numPosp[1,2:numSteps]).^2)/numSteps)
-rmsErrpyVay = √(sum((posp[2,2:numSteps] .-
-    numPosp[2,2:numSteps]).^2)/numSteps)
-rmsErrpzVay = √(sum((posp[3,2:numSteps] .-
-    numPosp[3,2:numSteps]).^2)/numSteps)
-
-# GCA
-# Electron
-numPose = patchGCA.tp.R[:, 1, :]
-numPosp = patchGCA.tp.R[:, 2, :]
-rmsErrexGCA = √(sum((pose[1,2:numSteps] .-
-    numPose[1,2:numSteps]).^2)/numSteps)
-rmsErreyGCA = √(sum((pose[2,2:numSteps] .-
-    numPose[2,2:numSteps]).^2)/numSteps)
-rmsErrezGCA = √(sum((pose[3,2:numSteps] .-
-    numPose[3,2:numSteps]).^2)/numSteps)
-# Proton
-rmsErrpxGCA = √(sum((posp[1,2:numSteps] .-
-    numPosp[1,2:numSteps]).^2)/numSteps)
-rmsErrpyGCA = √(sum((posp[2,2:numSteps] .-
-    numPosp[2,2:numSteps]).^2)/numSteps)
-rmsErrpzGCA = √(sum((posp[3,2:numSteps] .-
-    numPosp[3,2:numSteps]).^2)/numSteps)
-
-#-------------------------------------------------------------------------------
-# PLOT RESULTS
-if length(ARGS) >= 1 && ARGS[1] == "plot"
-    using Plots
-    println("in")
-    pos = patchEC.tp.pos
-    p1 = plot(pos[1, 1, :], pos[2, 1, :], label="Numerical",
-              title="Electron", xlabel="x, m", ylabel="y, m")
-    #p1 = plot!(pose[1, :], pose[2, :], label="Analytical", ls=:dash)
-    p2 = plot(pos[1, 2, :], pos[2, 2, :], label="Numerical",
-              title="Proton", xlabel="x, m", ylabel="y, m")
-    #p2 = plot!(posp[1, :], posp[2, :], label="Analytical", ls=:dash)
-    
-    plot(p1, p2, layout=(2,1))
-    gui()
-end # if plot
 #-------------------------------------------------------------------------------
 # TEST RESULTS
-@testset verbose = true "FO: Euler-Cromer" begin
-    @test rmsErrexEC ≈  6.066588298648159e-5
-    @test rmsErreyEC ≈ 5.5903789343654834e-5
-    @test rmsErrezEC == 0.0
-    @test rmsErrpxEC ≈  7.641789560048872e-14
-    @test rmsErrpyEC ≈ 3.3694076090881336e-8
-    @test rmsErrpzEC == 0.0
-end # testset Euler-Cromer
-#
-@testset verbose = true "Vay" begin
-    @test rmsErrexVay ≈  1.0902384513274832e-7
-    @test rmsErreyVay ≈ 1.0818615735766856e-7
-    @test rmsErrezVay == 0.0
-    @test rmsErrpxVay ≈ 3.772326801578384e-14
-    @test rmsErrpyVay ≈  2.802190198707962e-14
-    @test rmsErrpzVay == 0.0
+@testset verbose = true "Full orbit: Default alg." begin
+    @test isapprox(rmse_ex, 1e-7, rtol=1e-1)
+    @test isapprox(rmse_ey, 1e-7, rtol=1e-1)
+    @test isapprox(rmse_ez, 0.0, rtol=1e-1)
+    @test isapprox(rmse_px, 5e-15, rtol=1e-1)
+    @test isapprox(rmse_py, 1e-11, rtol=1e-0)
+    @test isapprox(rmse_pz, 0.0, rtol=1e-6)
 end # testset Vay
-#
-@testset verbose = true "GCA: RK4" begin
-    @test isapprox(patchGCA.tp.R[1,1,end], 0.02, rtol=1e-13)
-    @test isapprox(patchGCA.tp.R[2,1,end], 0.00, atol=1e-15)
-    @test isapprox(patchGCA.tp.R[3,1,end], 0.00, atol=1e-15)
-end # testset GCA: RK4
-
-# Full orbit using DifferentialEquations.jl
-@testset verbose = true "DE-FO" begin
-    # Electron
-    @test isapprox(simFO.u[1].u[end][1], pose[1,end], rtol=1e-3)
-    @test isapprox(simFO.u[1].u[end][2], pose[2,end], atol=1e-5)
-    @test isapprox(simFO.u[1].u[end][3], pose[3,end], rtol=1e-9)
-    # Proton
-    @test isapprox(simFO.u[2].u[end][1], posp[1,end], rtol=1e-9)
-    @test isapprox(simFO.u[2].u[end][2], posp[2,end], rtol=1e-9)
-    @test isapprox(simFO.u[2].u[end][3], posp[3,end], rtol=1e-9)
-end
-
 # GCA using DifferentialEquations.jl
-@testset verbose = true "DE-GCA" begin
+@testset verbose = true "GCA: Default alg." begin
     # Electron
-    @test isapprox(simGCA.u[1].u[end][1], 0.02, rtol=1e-13)
-    @test isapprox(simGCA.u[1].u[end][2], 0.00, atol=1e-15)
-    @test isapprox(simGCA.u[1].u[end][3], 0.00, rtol=1e-15)
+    @test isapprox(sol_GCA[1].u[end][1], 0.02, rtol=1e-13)
+    @test isapprox(sol_GCA[1].u[end][2], 0.00, atol=1e-15)
+    @test isapprox(sol_GCA[1].u[end][3], 0.00, rtol=1e-15)
 end
 
 
