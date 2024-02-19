@@ -5,6 +5,11 @@ using tp
 using Random
 using DifferentialEquations
 using JLD2
+using Interpolations
+# Progress bar integration
+using Logging: global_logger
+using TerminalLoggers: TerminalLogger
+global_logger(TerminalLogger())
 
 
 # SET EXPEIRMENT PARAMETERS
@@ -12,7 +17,7 @@ using JLD2
 # Particle parameters
 dtsnap = 1e-2 # in code units (hs)
 tspan = (0.0, dtsnap*100)   # Simulation time-span
-npart = convert(Int64, 1e1) # Number of particles
+npart = convert(Int64, 2e4) # Number of particles
 xbounds = (14.527344e6, 18.824219e6) # Bounds of of initial position in x
 ybounds = (1e6, 1e6)                 # Bounds of of initial position in x
 zbounds = (-7.78315e6,-3.8759463e6)  # Bounds of of initial position in x
@@ -31,7 +36,7 @@ wp_snap=Float32  # Working precision of Bifrost snapshot
 itp_bc = (Flat(), Flat()) # Interpolation boundary conditions
 
 # Parameters for saving data
-tp_expname="nullpointexp"                    # Simulation experiment name
+tp_expname="nullpoint8K_30M_FF_1s_serial"    # Simulation experiment name
 tp_expdir="/Users/eilifo/code/repos/data/8K" # Where to save results
  
 # Other options
@@ -41,14 +46,14 @@ eom = gca_2Dxz! # Equation of motion
 # DEFINE PARTICLE INITIAL CONDITIONS  AND ODE-PARAMETERS
 # -----------------------------------------------------------------------------
 # Background field interpolation object
-fields_itp = get_br_emfield_vecof_interpolators(
+println("Fetching Bifrost fields...")
+@time fields_itp = get_br_emfield_vecof_interpolators(
     br_expname,
     br_snap,
     br_expdir
     ;
     itp_bc = itp_bc
     )
-
 br_temp_itp = get_br_var_interpolator(
     br_expname,
     br_snap,
@@ -90,20 +95,23 @@ ensamble_prob = EnsembleProblem(
         prob, 
         prob_func=prob_func
         ;
-        safetycopy=false,
+        #safetycopy=false,
     )
 
 # SOLVE PROBLEM
 # -----------------------------------------------------------------------------
-sim = DifferentialEquations.solve(
-        ensamble_prob, 
-        EnsembleSerial(),
-        ;
-        trajectories=npart,
-        progress=true,
-        maxiters=1000
+println("Running simulation...")
+@time sim = DifferentialEquations.solve(
+    ensamble_prob,
+    EnsembleSerial(),
+    ;
+    trajectories=npart,
+    progress=true,
+    maxiters=10000,
+    save_everystep=false,
     )
 
 # SAVE THE RESULTS
 # -----------------------------------------------------------------------------
+println("Saving results...")
 @save joinpath(tp_expdir, tp_expname) sim
