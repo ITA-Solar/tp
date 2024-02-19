@@ -22,17 +22,18 @@ using ForwardDiff
 using Interpolations
 
 using Printf
-using JLD
+using JLD2
 
 using Distributed
 
 using BifrostTools
-#-------------------------------------------------------------------------------
 
+#-------------------------------------------------------------------------------
 """
-Abstract types
+        Abstract types
 """
 abstract type AbstractMesh end
+
 
 include("utils.jl")
 include("constants.jl")
@@ -58,7 +59,9 @@ include("io/bifrost_input.jl")
 # physics.jl
 export  get_guidingcentre,
         cosineof_pitchangle,
-        kineticenergy
+        kineticenergy,
+        magneticdipolefield,
+        magneticmirrorfield
 # equations_of_motion.jl
 export  guidingcentreapproximation!,
         gca_2Dxz!,
@@ -79,8 +82,7 @@ export  get_br_emfield_interpolator,
 # utils.jl
 export  dropdims,
         createaxes,
-        discretise!,
-        magneticdipolefield
+        discretise!
 
 
 #-------------------------------------------------------------------------------

@@ -2,14 +2,6 @@
 # Created 19.12.22
 # Author: e.s.oyre@astro.uio.no
 #-------------------------------------------------------------------------------
-#
-#                 particleDrift.jl
-#
-#-------------------------------------------------------------------------------
-# Experiment testing if the ExB-drift of particles in a static homogeneous 
-# electromagnetic field follows the analytical solution.
-#-------------------------------------------------------------------------------
-
 """
     testExBdrift.jl
 

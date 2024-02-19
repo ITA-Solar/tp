@@ -27,7 +27,6 @@ tspan = (0.0, tf)
 
 #...............................................
 # PARTICLE TYPE
-species = 4*ones(Int64, numparticles) # Specifies the species of the particles 
 mass = 1.0
 charge = 1.0
 

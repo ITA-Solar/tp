@@ -18,8 +18,8 @@ vel = [1.0, 2.0, 1.5] # Arbitrary velocity
 relVel = 6e7 .* vel   # m/s -> γ ≈ 1.19
 specie = 3 # Should yield mass = 1 and charge = 3
 dt = 0.1
-interpolator = trilinear
-scheme = euler
+interpolator = tp.trilinear
+scheme = tp.euler
 
 #---------------------------#
 # Some field configurations #

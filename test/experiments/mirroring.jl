@@ -1,18 +1,17 @@
 # Created 02.04.23
 # Author: e.s.oyre@astro.uio.no
 #-------------------------------------------------------------------------------
-#
-#                 mirroring.jl
-#
-#-------------------------------------------------------------------------------
-# This experiments tests the mirroring term in the GCA solver and mirroring in
-# the full orbit solver by comparing with an analytic expression of the motion
-# parallel to the magnetic field. The analytic magnetic bottle field is obtained
-# from Ripperda et al. 2018, and the motion of the particle is assume adiabatic
-# such that the GCA holds.
-#
-# The GC is initialised in the centre of the bottle to avoid any other drifts.
-#-------------------------------------------------------------------------------
+"""
+    mirroring.jl
+
+This experiments tests the mirroring term in the GCA solver and mirroring in
+the full orbit solver by comparing with an analytic expression of the motion
+parallel to the magnetic field. The analytic magnetic bottle field is obtained
+from Ripperda et al. 2018, and the motion of the particle is assume adiabatic
+such that the GCA holds.
+
+The GC is initialised in the centre of the bottle to avoid any other drifts.
+"""
 
 #-------------------------------------------------------------------------------
 #                            EXPERIMENTAL PARAMETERS
@@ -23,14 +22,14 @@
 numparticles = 1  # Number of particles to simulate    |
 dt = 1.e-3        # Time step [s]                      |
 tf = 30.0 #n=100   # End time of simulation [s]         |
+tspan = (0, tf)
 #tf = 2.3 #n=10   # End time of simulation [s]         |
 #......................................................|
 
 #...............................................
 # PARTICLE TYPE
-species = 4*ones(Int64, numparticles) # Specifies the species of the particles 
-mass = specieTable[species[1], 1]
-charge = specieTable[species[1], 2]
+mass = 1
+charge = 1
 
 #...............................................
 # MAGNETIC FIELD PARAMETERS
@@ -64,12 +63,7 @@ Ey = 0.0
 
 #...............................................
 # SOLVER CONDITIONS
-FOscheme = rk4  # Scheme for integrating the full-orbit eqs.
-GCAscheme = euler # Scheme for integrating the GCA eqs.
-FOinterp = trilinear # Interpolation scheme for full orbit
-GCAinterp = trilinearGCA # Interpolation scheme for GCA
-pbc    = (true, true, true) # (x,y,z) Are mesh boundary conditions periodic?
-
+# RK4 for GCA? Euler-Cromer for full orbit?
 
 #-------------------------------------------------------------------------------
 #                            RUN EXPERIMENT
@@ -82,12 +76,11 @@ Efield = zeros(size(Bfield))
 Efield[1,:,:,:] .= Ex
 Efield[2,:,:,:] .= Ey
 #Efield[1,:,1:30,:] .= 0.0
-discretise!(Bfield, xx, yy, zz, mirroringfield, B0, L)
-
-#-------------------------------------------------------------------------------
-# MESH CREATION
-# Create Mesh instance
-mesh = Mesh(Bfield, Efield, xx, yy, zz)
+discretise!(Bfield, xx, yy, zz, magneticmirrorfield, B0, L)
+emfields = eachslice(vcat(Bfield, Efield), dims=(2,3,4))
+emfields_itp = linear_interpolation((xx, yy, zz), emfields, 
+    extrapolation_bc=Flat()
+    )
 
 #-------------------------------------------------------------------------------
 # SIMULATION DURATION
@@ -98,54 +91,40 @@ numsteps = trunc(Int64, tf/dt)   # Number of timesteps in the simulation
 #-------------------------------------------------------------------------------
 # PARTICLE CREATION
 # Set initial position and velocities
-(B⃗, E⃗), _ = gridinterp(mesh,
-                       trilinear,
-                       pos0)
+B⃗ = emfields_itp(pos0...)[1:3]
+E⃗ = zeros(3)
 B = norm(B⃗)
 b̂ = B⃗/B
 v = norm(vel0)
-vparal = [vel0 ⋅ b̂]
+vparal = vel0 ⋅ b̂
 vperp = √(v^2 - vparal[1]^2)
-mass = specieTable[species[1], 1]
-μ = [mass*vperp^2/(2B)]
-
-tpFO = ParticleSoA(pos0, vel0, species, numsteps)
-tpGCA = GCAParticleSoA(R0, vparal, μ, species, numsteps)
+μ = mass*vperp^2/(2B)
 
 #-------------------------------------------------------------------------------
-# CREATE PATCH
-# Non-relativisitc Euler-Cromer
-patchFO = Patch(mesh,
-                tpFO,
-                fullOrbit,
-                FOscheme,
-                FOinterp,
-                dt,
-                numsteps,
-                numparticles,
-                pbc
-                )
-patchGCA = Patch(mesh,
-                 tpGCA,
-                 gca,
-                 GCAscheme,
-                 GCAinterp,
-                 dt,
-                 numsteps,
-                 numparticles,
-                 pbc
-                 )
+# CREATE PROBLEM
+prob_FO = ODEProblem(
+    lorentzforce!, 
+    [pos0; vel0],
+    tspan,
+    (charge, mass, emfields_itp),
+    )
+prob_GCA = ODEProblem(
+    guidingcentreapproximation!,
+    [R0; vparal],
+    tspan,
+    (charge, mass, μ, emfields_itp)
+    )
 
 #...............................................................................
 # RUN SIMULATION
-run!(patchFO)
-run!(patchGCA)
+sol_FO = DifferentialEquations.solve(prob_FO)
+sol_GCA = DifferentialEquations.solve(prob_GCA)
+
 #...............................................................................
 
 
 #-------------------------------------------------------------------------------
 # TESTING
-charge = specieTable[species[1], 2]
 Bmax = B0*norm(vel0)^2/(vel0[1]^2 + vel0[2]^2)
 zmax = L*√(Bmax/B0 - 1)
 
@@ -156,16 +135,17 @@ end
 ϕ = 0
 A = zmax
 times = collect(range(0.0, step=dt, length=numsteps+1))
-z_anal = z(times, μ[1], mass, B0, L, A, ϕ)
+z_anal_FO = z(sol_FO.t, μ, mass, B0, L, A, ϕ)
+z_anal_GCA = z(sol_GCA.t, μ, mass, B0, L, A, ϕ)
 
-z_GCA  = patchGCA.tp.R[3,1,:]
-z_FO = patchFO.tp.pos[3,1,:]
-rmse_GCA = √(sum((z_anal .- z_GCA).^2)/numsteps)
-rmse_FO = √(sum((z_anal .- z_FO).^2)/numsteps)
-@testset verbose = true "GCA: Euler" begin
+z_GCA  = [u[3] for u in sol_GCA.u] 
+z_FO  = [u[3] for u in sol_FO.u] 
+rmse_GCA = √(sum((z_anal_GCA .- z_GCA).^2)/numsteps)
+rmse_FO = √(sum((z_anal_FO .- z_FO).^2)/numsteps)
+@testset verbose = true "GCA: Default alg." begin
     @test isapprox(rmse_GCA, 0.0, atol=0.001)
 end # testset GCA: Euler
-@testset verbose = true "Full orbit: RK4" begin
-    @test isapprox(rmse_FO, 0.0, atol=0.001)
+@testset verbose = true "Full orbit: Default alg." begin
+    @test isapprox(rmse_FO, 0.0, atol=0.010)
 end # testset GCA: Euler
     

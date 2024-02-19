@@ -110,6 +110,7 @@ function testtrilinear(verbose::Bool)
     end # testset
 end # function testtrilinear
 
+
 """
     testlocateCell(verbose::bool)
 Tests the grid search function `locateCell` which uses a binary search

@@ -25,7 +25,7 @@ function testeuler(verbose::Bool)
     @testset verbose=verbose "euler" begin
         posAnswer = [1.1, 2.2, 2.3, 2.65]
         velAnswer = [1.1, 2.3, 3.4, 2.55]
-        svNext = euler([pos; vel], dt, f)
+        svNext = tp.euler([pos; vel], dt, f)
         @test posAnswer == svNext[1:4]
         @test velAnswer == svNext[5:8]
     end # testset euler
@@ -42,7 +42,7 @@ function testeulerCromer(verbose::Bool)
     @testset verbose=verbose "eulerCromer" begin
         posAnswer = [1.11, 2.23, 2.34, 2.755]
         velAnswer = [1.1,   2.3,  3.4,  2.55]
-        svNext = eulerCromer([pos; vel], dt, f)
+        svNext = tp.eulerCromer([pos; vel], dt, f)
         @test posAnswer == svNext[1:4]
         @test velAnswer == svNext[5:8]
     end # testset euler
