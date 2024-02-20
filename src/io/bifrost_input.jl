@@ -40,6 +40,49 @@ function get_br_emfield_vecof_interpolators(args...; kwargs...)
 end
 
 
+function get_br_gcafields_vecof_interpolators(
+        expname ::String,
+        snap    ::Integer,
+        expdir  ::String,
+        ;
+        itp_bc=Flat(),
+        kwargs...
+        )
+    vars = ("bx", "by", "bz", "ex", "ey", "ez")
+    emfields = [get_var(expname, snap, expdir, var; kwargs...)
+        for var in vars]
+    B_vec = stack(emfields[1:3])
+    E = stack(emfields[4:6])
+    br_axes = load_br_axes(expname, snap, expdir)
+    println("Computing gradients...")
+    ∇B, ∇b̂, ∇ExBdrift = tp.gcagradients_from_emfield(
+        B_vec,
+        E,
+        br_axes...,
+        derivateupwind
+        )
+
+    # Drop extra dimensions
+    B_vec = dropdims(B_vec)
+    E = dropdims(E)
+    ∇B = dropdims.(∇B)
+    ∇b̂ = dropdims.(∇b̂)
+    ∇ExBdrift = dropdims.(∇ExBdrift)
+    br_axes = dropdims(br_axes)
+
+    itps = [linear_interpolation(br_axes, var, extrapolation_bc=itp_bc)
+        for var in (
+            [B_vec[:,:,i] for i in 1:3]...,
+            [E[:,:,i] for i in 1:3]...,
+            ∇B...,
+            ∇b̂...,
+            ∇ExBdrift...
+            )
+        ]
+end
+
+
+
 function get_br_emfield_interpolator(
         expname::String,
         snap   ::Integer,

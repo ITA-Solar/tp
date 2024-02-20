@@ -291,8 +291,8 @@ end
 
 """
     gca_highmemory(u, p, _)
-Same as @gca, does not calculate gradients on the fly. Uses interpolation 
-and gradients stored in memory instead.
+Same as @gca, but does not calculate gradients on the fly.
+Uses interpolation and gradients stored in memory instead.
 """
 function gca_highmemory(u, p, _)
     R = u[1:3]    # Position of the gyrocentre
@@ -354,6 +354,66 @@ function gca_highmemory(u, p, _)
 
     # Update the statevector
     return [dRdt; dvparaldt; dbetadt] 
+
+end
+
+
+"""
+    gca_highmemory_2Dxz!(du, u, p, _)
+Same as @gca_2Dxz!, but does not calculate gradients on the fly. Uses
+interpolation and gradients stored in memory instead.
+"""
+function gca_highmemory_2Dxz!(du, u, p, _)
+    Rx, Ry, Rz = u[1:3]    # Position of the gyrocentre
+    vparal = u[4] # Particle velocity parallel to the magnetic field
+
+    # Extract parameters:
+    #
+    # Particle charge and particle mass and the Coulomb logarithm
+    q, m, mu, itpvec = p[1:4]
+    # interpolation object for:
+    # the magnetic vector field, the electric vector field, the magnetic
+    # gradient vector field, the gradient of the magnetic direction
+    # (a 3rd order tensor field) and the gradient of the ExB-drift (a 3rd
+    # order tensor field)
+    B_vec = [itpvec[i](Rx, Rz) for i in 1:3]
+    E_vec = [itpvec[i](Rx, Rz) for i in 4:6]
+    gradB_vec = [itpvec[i](Rx, Rz) for i in 7:9]
+    gradb = reshape([itpvec[i](Rx, Rz) for i in 10:18], 3, 3)
+    gradExB = reshape([itpvec[i](Rx, Rz) for i in 19:27], 3, 3)
+
+    # Calculate some quantities
+    B = norm(B_vec)   # The magnetic field strength
+    b_vec = B_vec/B   # An unit vector pointing in the direction of the
+                      #  magnetic field
+    Eparal = E_vec⋅b_vec # Electric field component parallel to the
+                         # magnetic field
+
+    # Calculate drifts
+    ExBdrift = (E_vec × b_vec)/B
+    ∇Bdrift = mu/(q*B)*(b_vec × gradB_vec)
+
+    # Material derivatives of the magnetic field strength, the magnetic field
+    # direction, and the ExB-drift. Assumes ∂/∂t = 0
+    # See Ripperda et al. (2018) and notes.
+    dBdt = vparal * b_vec ⋅ gradB_vec + ExBdrift ⋅ gradB_vec
+    dbdt = vparal * (gradb * b_vec) + gradb*ExBdrift
+    dExBdt = vparal * (gradExB * b_vec) + gradExB*ExBdrift
+
+    # Compute the perpendicular velcoity
+    dRperpdt = ExBdrift + ∇Bdrift + m*b_vec/(q*B) × (vparal*dbdt + dExBdt)
+
+    # Compute the acceleration along the magnetic field
+    dvparaldt = (q*Eparal - mu*b_vec⋅gradB_vec)/m
+    # With correction proposed by Birn et al., 2004:
+    #dvparaldt = (q*Eparal - μ*b̂⋅∇B)/m + ExBdrift⋅db̂dt + ∇Bdrift⋅db̂dt
+    #dRperpdt = b̂/B × (-c*E⃗ + μ*c/q * ∇B) #old
+
+    # Compute the total velocity of the guiding centre
+    dRdt = vparal*b_vec + dRperpdt
+
+    # Update the statevector
+    return du[:] = [dRdt; dvparaldt]
 
 end
 

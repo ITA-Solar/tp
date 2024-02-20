@@ -85,9 +85,9 @@ strength. The argument 'axis' determines whether the vector components are
 stored in the first or fourth dimension of the array storing the field.
 """
 function norm4(
-    field::Array{T} where {T<:Real},
-    axis ::Integer=1
+    field::Array{T} where {T<:Real}
     ;
+    axis ::Integer=1,
     wfp  ::DataType=typeof(field[1])
                )
     if axis == 1

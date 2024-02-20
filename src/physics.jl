@@ -311,3 +311,50 @@ function fadeevEquilibrium(
     return (xx, yy, zz), (dx, dy, dz), A
     
 end # function FadeevEquilibrium
+
+
+"""
+    gcagradients_from_emfield(
+        bField ::Array{T, 4} where {T<:Real},
+        eField ::Array{T, 4} where {T<:Real},
+        xCoords::Vector{T} where {T<:Real},
+        yCoords::Vector{T} where {T<:Real},
+        zCoords::Vector{T} where {T<:Real},
+        scheme ::Function
+        )
+Compute the gradients used in the guiding centre approximation from an
+electromagnetic field. The gradients are:
+- The gradient of the magnetic field strength
+- the gradient of the magnetic field direction
+- the gradient of the E cross B drift.
+"""
+function gcagradients_from_emfield(
+    bField ::Array{T, 4} where {T<:Real},
+    eField ::Array{T, 4} where {T<:Real},
+    xCoords::Vector{T} where {T<:Real},
+    yCoords::Vector{T} where {T<:Real},
+    zCoords::Vector{T} where {T<:Real},
+    scheme ::Function
+    )
+    wfp = typeof(bField[1])
+    nx, ny, nz, ncomp = size(bField)
+    BB = norm4(bField, axis=4)
+    b̂ = zeros(wfp, nx, ny, nz, ncomp)
+    ExBdrift = zeros(wfp, nx, ny, nz, ncomp)
+    # I guess this could be done much more efficiently
+    for i = 1:nx
+        for j= 1:ny
+            for k = 1:nz
+                B⃗ = bField[i,j,k,:]
+                E⃗ = eField[i,j,k,:]
+                B = BB[i,j,k]
+                b̂[i,j,k,:]  .= B⃗ ./ B
+                ExBdrift[i,j,k,:] .= (E⃗ × B⃗) ./ B^2
+            end
+        end
+    end
+    ∇B = ∇(BB, xCoords, yCoords, zCoords, scheme)
+    ∇b̂ = ∇(b̂,  xCoords, yCoords, zCoords, scheme)
+    ∇ExBdrift= ∇(ExBdrift, xCoords, yCoords, zCoords, scheme)
+    return ∇B, ∇b̂, ∇ExBdrift
+end

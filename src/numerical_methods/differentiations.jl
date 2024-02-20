@@ -11,7 +11,7 @@
 
 
 """
-    dervateUpwind(
+    dervateupwind(
         field::Array{T, 3} where {T<:Real},
         dx   ::Vector{T} where {T<:Real},
         axis ::Tuple{Integer, Integer, Integer}
@@ -21,7 +21,7 @@ scheme. The grid size may be variable, hence given as the vector `dx`. End point
 of result will be ill-calculated and the derivative will be defined at half grid
 point higher than the input field.
 """
-function derivateUpwind(
+function derivateupwind(
     field::Array{T, 3} where {T<:Real},
     xx   ::Vector{T} where {T<:Real},
     yy   ::Vector{T} where {T<:Real},
@@ -64,16 +64,16 @@ end #function derivateUpwind
 
 
 """
-    derivateCentral(field, dx)
+    derivatecentral(field, dx)
 First and last grid point are ill calculated.
 """
-function derivateCentral(field::Vector{T} where {T<:Real},
+function derivatecentral(field::Vector{T} where {T<:Real},
                          dx
                          )
     return (circshift(field, -1) - circshift(field, 1))/2dx
 end # function derivateCentral
 #|
-function derivateCentral(field      ::Array{T, 3} where {T<:Real},
+function derivatecentral(field      ::Array{T, 3} where {T<:Real},
                          gridSpacing::Real,
                          axis       ::Tuple{Int64, Int64, Int64}
                          )
@@ -83,10 +83,10 @@ end # function derivateCentral
 
 
 """
-    derivate4thOrder(field, dx)
+    derivate4thorder(field, dx)
 First and last two grid point are ill calculated.
 """
-function derivate4thOrder(field      ::Array{T, 3} where {T<:Real},
+function derivate4thorder(field      ::Array{T, 3} where {T<:Real},
                           gridSpacing::Real,
                           axis       ::Tuple{Int64, Int64, Int64}
                           )
@@ -194,30 +194,15 @@ function ∇(field::Array{T, 4} where {T<:Real},
            wfp::DataType=typeof(field[1])
            )
     #
-    fx = field[1,:,:,:]
-    fy = field[2,:,:,:]
-    fz = field[3,:,:,:]
+    fx = field[:,:,:,1]
+    fy = field[:,:,:,2]
+    fz = field[:,:,:,3]
     #
     ∂fx∂x, ∂fx∂y, ∂fx∂z = scheme(fx, xx, yy, zz)
     ∂fy∂x, ∂fy∂y, ∂fy∂z = scheme(fy, xx, yy, zz)
     ∂fz∂x, ∂fz∂y, ∂fz∂z = scheme(fz, xx, yy, zz)
     #
-    _, nx, ny, nz = size(field)
-    jacobian = zeros(wfp, 3, 3, nx, ny, nz)
-    #
-    jacobian[1, 1, :,:,:] = ∂fx∂x
-    jacobian[1, 2, :,:,:] = ∂fx∂y
-    jacobian[1, 3, :,:,:] = ∂fx∂z
-    #
-    jacobian[2, 1, :,:,:] = ∂fy∂x
-    jacobian[2, 2, :,:,:] = ∂fy∂y
-    jacobian[2, 3, :,:,:] = ∂fy∂z
-    #
-    jacobian[3, 1, :,:,:] = ∂fz∂x
-    jacobian[3, 2, :,:,:] = ∂fz∂y
-    jacobian[3, 3, :,:,:] = ∂fz∂z
-    #
-    return jacobian
+    return [∂fx∂x, ∂fy∂x, ∂fz∂x, ∂fx∂y, ∂fy∂y, ∂fz∂y, ∂fx∂z, ∂fy∂z, ∂fz∂z]
 end # function ∇
 #|
 function ∇(field::Array{T, 3} where {T<:Real},
@@ -230,14 +215,7 @@ function ∇(field::Array{T, 3} where {T<:Real},
            )
         
     ∂f∂x, ∂f∂y, ∂f∂z = scheme(field, xx, yy, zz)
-
-    nx, ny, nz = size(field)
-    gradient = zeros(wfp, 3, nx, ny, nz)
-    gradient[1, :, :, :] = ∂f∂x
-    gradient[2, :, :, :] = ∂f∂y
-    gradient[3, :, :, :] = ∂f∂z
-    return gradient
-
+    return [∂f∂x, ∂f∂x, ∂f∂x]
 end # function ∇
 
 
