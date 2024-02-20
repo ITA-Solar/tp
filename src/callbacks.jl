@@ -15,6 +15,10 @@ function DiscreteTPCallback()
 end
 
 
+function killparticle!(integrator)
+    terminate!(integrator)
+end
+
 """
     outside2dnullpointzoom(u, t, integrator)
 Callback condition for particles exiting the zoomed-in domain in the 2D
