@@ -39,10 +39,23 @@ prob = ODEProblem(eom, ic[1], tspan) # Create an initial ODE-problem
 function prob_func(prob, i, repeat)
     remake(prob, u0=ic[i], p=(mass, charge[i], emfield))
 end
+# Define an output function - what to be saved from each particle solution
+# The ODESolution type contains a lot of metadata, including alogorithm
+# choice, number of algorithm switches, etc. In a large ensemble, this
+# overhead will quickly consume a lot of memory.
+#
+# In this output function we save only the initial and final state of the
+# particle, in addition to its timesteps. We set the required "rerun" return
+# argument to false.
+function output_func(sol,i)
+    return ([first(sol), last(sol)], sol.t), false
+end
 # Define an Ensamble-problem, to simulate the ensemble of particles
 ensamble_prob = EnsembleProblem(
-    prob, # Initial problem
-    prob_func=prob_func
+    prob # Initial problem
+    ;
+    prob_func=prob_func,
+    output_func=output_func
 )
 
 # Run the simulation
