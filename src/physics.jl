@@ -33,27 +33,41 @@ end
 
 """
     kineticenergy(
-        parallel_velocity::Vector{<:Real},
-        magnetic_moment  ::Vector{<:Real},
+        bfield       ::Vector{<:Real},
+        efield       ::Vector{<:Real},
+        guidingcentre::Vector{<:Real},
+        parallel_velocity::Real,
+        magneticmoment   ::Real,
         mass             ::Real,
-        magneticfield    ::Vector{<:Real},
-        electricfield    ::Vector{<:Real}
+        charge           ::Real,
+        phaseangle       ::Real=0.0,
         )
 Return the kinetic energy of charged particle given the `parallel_velocity` of
 its *guiding centre*, its `magnetic_moment`, `mass`, and the external
 electromagnetic field.
 """
 function kineticenergy(
-    parallel_velocity::Vector{<:Real},
-    magnetic_moment  ::Vector{<:Real},
+    bfield       ::Vector{<:Real},
+    efield       ::Vector{<:Real},
+    guidingcentre::Vector{<:Real},
+    parallel_velocity::Real,
+    magneticmoment   ::Real,
     mass             ::Real,
-    magneticfield    ::Vector{<:Real},
-    electricfield    ::Vector{<:Real}
+    charge           ::Real,
+    phaseangle       ::Real=0.0,
     )
-    v_exb, B, _ = exbdrift(magneticfield, electricfield)
-    # Add more drifts if relevant
-    vperp = perpendicular_velocity(magnetic_moment, mass, B)
-    return 0.5mass*(vperp + parallel_velocity + norm(v_exb))^2
+    u = get_fullorbit(
+        bfield,
+        efield,
+        guidingcentre,
+        parallel_velocity,
+        magneticmoment,
+        mass,
+        charge,
+        phaseangle
+        )
+    vel = u[3:6]
+    ke = kineticenergy(vel)
 end
 
 

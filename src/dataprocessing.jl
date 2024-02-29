@@ -94,3 +94,72 @@ function getfinaltime(
 end
 
 
+function calculateenergy(
+    solution::Vector{Tuple{Any, Any, Any, Any, Any}},
+    expname ::String,
+    snap    ::Integer,
+    expdir  ::String,
+    ;
+    mass  ::Real=tp.m_e,
+    charge::Real=tp.e,
+    units ::String="SI",
+    destagger::Bool=true,
+    itp_bc=(Flat(), Flat())
+    )
+    itpvec = get_br_emfield_vecof_interpolators(
+        expname, snap, expdir;
+        units=units, destagger=destagger, itp_bc=itp_bc
+        )
+    nofparticles = length(solution)
+    ekf = Vector{typeof(solution[1][1][1])}(undef, nofparticles)
+    for j in eachindex(solution)
+        u0 = solution[j][1]
+        uf = solution[j][2]
+        B0_vec = [itpvec[i](u0[1], u0[3]) for i in 1:3]
+        E0_vec = [itpvec[i](u0[1], u0[3]) for i in 4:6]
+        Bf_vec = [itpvec[i](uf[1], uf[3]) for i in 1:3]
+        Ef_vec = [itpvec[i](uf[1], uf[3]) for i in 4:6]
+        ek0[j] = kineticenergy(
+            B0_vec, E0_vec, u0[1:3], u0[4], solution[j][3],
+            mass, charge
+            )
+        ekf[j] = kineticenergy(
+            Bf_vec, Ef_vec, uf[1:3], uf[4], solution[j][3],
+            mass, charge
+            )
+    end
+    return ek0, ekf
+end
+
+
+function calculateenergy(
+    solution::Vector{Tuple{Any, Any, Any, Any, Any, Any, Any, Any, Any}}
+    ;
+    mass  ::Real=tp.m_e,
+    charge::Real=tp.e
+    )
+    nofparticles = length(solution)
+    ek0 = Vector{typeof(solution[1][1][1])}(undef, nofparticles)
+    ekf = Vector{typeof(solution[1][1][1])}(undef, nofparticles)
+    for part in solution
+        ek0 = kineticenergy(
+            part[4],
+            part[5],
+            part[1][1:3],
+            part[1][4],
+            part[3],
+            mass,
+            charge
+            )
+        ekf = kineticenergy(
+            part[6],
+            part[7],
+            part[2][1:3],
+            part[2][4],
+            part[3],
+            mass,
+            charge
+            )
+    end
+    return ek0, ekf
+end
