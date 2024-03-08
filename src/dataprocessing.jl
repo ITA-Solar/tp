@@ -94,7 +94,13 @@ function getfinaltime(
 end
 
 
-function calculateenergy(
+function calc_energy(args...; kwargs...)
+    ek0comp, ekfcomp, v0, vf = calc_energycomponents(args...; kwargs...)
+    return sum.(ek0comp), sum.(ekfcomp), v0, vf
+end
+
+
+function calc_energycomponents(
     solution::Vector{Tuple{Any, Any, Any, Any, Any}},
     expname ::String,
     snap    ::Integer,
@@ -110,30 +116,12 @@ function calculateenergy(
         expname, snap, expdir;
         units=units, destagger=destagger, itp_bc=itp_bc
         )
-    nofparticles = length(solution)
-    ekf = Vector{typeof(solution[1][1][1])}(undef, nofparticles)
-    for j in eachindex(solution)
-        u0 = solution[j][1]
-        uf = solution[j][2]
-        B0_vec = [itpvec[i](u0[1], u0[3]) for i in 1:3]
-        E0_vec = [itpvec[i](u0[1], u0[3]) for i in 4:6]
-        Bf_vec = [itpvec[i](uf[1], uf[3]) for i in 1:3]
-        Ef_vec = [itpvec[i](uf[1], uf[3]) for i in 4:6]
-        ek0[j] = kineticenergy(
-            B0_vec, E0_vec, u0[1:3], u0[4], solution[j][3],
-            mass, charge
-            )
-        ekf[j] = kineticenergy(
-            Bf_vec, Ef_vec, uf[1:3], uf[4], solution[j][3],
-            mass, charge
-            )
-    end
-    return ek0, ekf
+    calc_energycomponents(solution, itpvec; mass=mass, charge=charge)
 end
 
 
 function calculateenergy(
-    solution::Vector{Tuple{Any, Any, Any, Any, Any, Any, Any, Any, Any}}
+    solution::Vector{Tuple{Any, Any, Any, Vector, Vector, Vector, Vector, Any, Any}}
     ;
     mass  ::Real=tp.m_e,
     charge::Real=tp.e
@@ -141,25 +129,144 @@ function calculateenergy(
     nofparticles = length(solution)
     ek0 = Vector{typeof(solution[1][1][1])}(undef, nofparticles)
     ekf = Vector{typeof(solution[1][1][1])}(undef, nofparticles)
-    for part in solution
-        ek0 = kineticenergy(
+    for (part, i) in zip(solution, 1:nofparticles)
+        ek0[i] = kineticenergy(
             part[4],
             part[5],
-            part[1][1:3],
             part[1][4],
             part[3],
             mass,
-            charge
             )
-        ekf = kineticenergy(
+        ekf[i] = kineticenergy(
             part[6],
             part[7],
-            part[2][1:3],
             part[2][4],
             part[3],
             mass,
-            charge
             )
     end
     return ek0, ekf
 end
+
+
+function calc_energycomponents(
+    solution::Vector{Tuple{Any, Any, Any, Vector, Vector, Vector, Vector, Any, Any}},
+    args...
+    ;
+    mass  ::Real=tp.m_e,
+    charge::Real=tp.e
+    )
+    v0, vf = calc_drifts_and_vperp(solution, args..., mass=mass, charge=charge)
+    return calc_energycomponents(solution, v0, vf)..., v0, vf
+end
+
+function calc_energycomponents(
+    solution::Vector{Tuple{Any, Any, Any, Vector, Vector, Vector, Vector, Any, Any}},
+    v0::Vector{<:Tuple{Real, Vector{<:Vector}}},
+    vf::Vector{<:Tuple{Real, Vector{<:Vector}}},
+    ;
+    mass  ::Real=tp.m_e,
+    )
+    nofparticles = length(solution)
+    ek0 = Vector{Vector{typeof(solution[1][1][1])}}(undef, nofparticles)
+    ekf = Vector{Vector{typeof(solution[1][1][1])}}(undef, nofparticles)
+    for (part, i) in zip(solution, 1:nofparticles)
+        ek0[i] = [
+            part[1][4] ^ 2,
+            v0[i][1] ^2,
+            norm(sum(v0[i][2])) ^2
+            ]
+        ekf[i] = [
+            part[2][4] ^ 2,
+            vf[i][1] ^2,
+            norm(sum(vf[i][2])) ^2
+            ]
+    end
+    return 0.5mass*ek0, 0.5mass*ekf
+end
+
+
+function calc_drifts_and_vperp(
+    solution::Vector{Tuple{Any, Any, Any, Vector, Vector, Vector, Vector, Any, Any}}
+    ;
+    mass  ::Real=tp.m_e,
+    kwargs...
+    )
+    nofparticles = length(solution)
+    RealT = typeof(solution[1][1][1])
+    v0 = Vector{Tuple{RealT, Vector{Vector{RealT}}}}(undef, nofparticles)
+    vf = Vector{Tuple{RealT, Vector{Vector{RealT}}}}(undef, nofparticles)
+    for (part, i) in zip(solution, 1:nofparticles)
+        v0[i] = ( 
+            perpendicular_velocity(part[3], mass, norm(part[4])),
+            [exbdrift(part[4], part[5])[1]]
+            )
+        vf[i] = ( 
+            perpendicular_velocity(part[3], mass, norm(part[6])),
+            [exbdrift(part[6], part[7])[1]]
+            )
+    end
+    return v0, vf
+end
+
+
+function calc_drifts_and_vperp(
+    solution::Vector{Tuple{Any, Any, Any, Vector, Vector, Vector, Vector, Any, Any}},
+    emfield_itpvec::Vector{<:AbstractInterpolation}
+    ;
+    charge::Real=-tp.e,
+    mass  ::Real=tp.m_e,
+    )
+    nofparticles = length(solution)
+    RealT = typeof(solution[1][1][1])
+    v0 = Vector{Tuple{RealT, Vector{Vector{RealT}}}}(undef, nofparticles)
+    vf = Vector{Tuple{RealT, Vector{Vector{RealT}}}}(undef, nofparticles)
+    for (part, i) in zip(solution, 1:nofparticles)
+        v0[i] = drifts_and_vperp_2Dxz(
+            part[1][1:3],
+            part[1][4],
+            charge,
+            mass,
+            part[3],
+            emfield_itpvec
+            )
+        vf[i] = drifts_and_vperp_2Dxz(
+            part[2][1:3],
+            part[2][4],
+            charge,
+            mass,
+            part[3],
+            emfield_itpvec
+            )
+    end
+    return v0, vf
+end
+
+
+function avgnumsteps(
+    solution::Vector{Tuple{
+        Any, Any, Any, Vector, Vector, Vector, Vector, Any, Any
+        }}
+    )
+    sum = 0
+    for particle in solution
+        sum += particle[8]
+    end
+    return sum/length(solution)
+end
+
+
+function findinittemp(
+    solution::Vector{Tuple{
+        Any, Any, Any, Vector, Vector, Vector, Vector, Any, Any
+        }},
+    tempitp::AbstractInterpolation
+    )
+    nofparticles = length(solution)
+    T = Vector{typeof(solution[1][1][1])}(undef, nofparticles)
+    for (particle, i) in zip(solution, 1:nofparticles)
+        T[i] = tempitp(particle[1][1], particle[1][3])
+    end
+    return T
+end
+
