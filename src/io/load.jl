@@ -27,7 +27,7 @@ function load(
     ;
     kwargs...
     )
-    file_ext = splitext(filename)[1]
+    file_ext = splitext(filename)[2]
     if file_ext == ".jld"
         load_jld(filename; kwargs...)
     elseif file_ext == ".fo"
@@ -35,6 +35,8 @@ function load(
     elseif file_ext == ".gca"
         load_gca(filename; kwargs...)
     elseif file_ext == ".lw"
+        load_lightweight(filename; kwargs...)
+    elseif file_ext == ".tp"
         load_lightweight(filename; kwargs...)
     end
 end
