@@ -401,7 +401,7 @@ function get_guidingcentre(
     charge       ::Real,
     mass         ::Real
     )
-    ExBdrift, B, b_vec = exbdrift(magneticfield, electricfield)
+    ExBdrift, B, _, b_vec = exbdrift(magneticfield, electricfield)
     vel_in_E_frame = vel - ExBdrift
     # Calculate the guiding centre posistion 
     R = pos - mass/(charge*B) * (vel_in_E_frame × b_vec)
